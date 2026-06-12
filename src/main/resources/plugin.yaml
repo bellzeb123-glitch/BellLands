@@ -1,0 +1,18 @@
+name: BellLands
+version: '1.26.1.2'
+main: pl.bell.lands.BellLands
+api-version: '1.21'
+authors: [Bellzeb]
+description: System claimowania dzialek z GUI i integracja Pl3xMap
+softdepend: [Pl3xMap]
+
+commands:
+  belllands:
+    aliases: [blands, lands, claim]
+    description: Glowna komenda dzialek
+  tpa:
+    description: Prosba o teleportacje do gracza
+  tpaccept:
+    description: Akceptacja prosby o teleportacje
+  tpdeny:
+    description: Odrzucenie prosby o teleportacje

@@ -1,0 +1,31 @@
+name: Build BellLands
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Pobieranie kodu (Checkout)
+      uses: actions/checkout@v4
+
+    - name: Konfiguracja Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Budowanie pluginu przez Maven
+      run: mvn -B package --file pom.xml
+
+    - name: Zapisywanie gotowego pliku .jar
+      uses: actions/upload-artifact@v4
+      with:
+        name: BellLands-JAR
+        path: target/BellLands-*.jar

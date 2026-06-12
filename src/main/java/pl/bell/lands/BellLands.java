@@ -4,13 +4,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import pl.bell.lands.command.TpaCommand;
 import pl.bell.lands.manager.TPAManager;
 
-public class BellLands extends JavaPlugin {
+public final class BellLands extends JavaPlugin {
 
+    private static BellLands instance;
     private TPAManager tpaManager;
 
     @Override
     public void onEnable() {
-        // Inicjalizacja managera
+        instance = this;
+        printBanner();
+
+        // INICJALIZACJA MANAGERA
         this.tpaManager = new TPAManager();
 
         // Rejestracja komend
@@ -19,19 +23,21 @@ public class BellLands extends JavaPlugin {
         if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
         if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
         if (getCommand("tpdeny") != null) getCommand("tpdeny").setExecutor(tpaCommand);
-
-        getLogger().info("BellLands zostalo pomyslnie uruchomione!");
+        
+        getLogger().info("BellLands zostal pomyslnie uruchomiony!");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("BellLands zostalo wylaczone.");
-    }
-}
+        getLogger().info("Zapisywanie dzialek i wylaczanie BellLands...");
     }
 
     public static BellLands getInstance() {
         return instance;
+    }
+
+    public TPAManager getTpaManager() {
+        return tpaManager;
     }
 
     private void printBanner() {

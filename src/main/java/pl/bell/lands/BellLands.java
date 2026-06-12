@@ -1,28 +1,33 @@
 package pl.bell.lands;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import pl.bell.lands.command.TpaCommand;
+import pl.bell.lands.manager.TPAManager;
 
-public final class BellLands extends JavaPlugin {
+public class BellLands extends JavaPlugin {
 
-    private static BellLands instance;
+    private TPAManager tpaManager;
 
     @Override
     public void onEnable() {
-        instance = this;
-        printBanner();
+        // Inicjalizacja managera
+        this.tpaManager = new TPAManager();
 
-        // INICJALIZACJA ETAPÓW
-        // TODO: Ładowanie bazy danych
-        // TODO: Rejestracja komend (TPA, BellLands)
-        // TODO: Rejestracja listenerów (ochrona terenu)
+        // Rejestracja komend
+        TpaCommand tpaCommand = new TpaCommand(tpaManager);
         
-        getLogger().info("BellLands zostal pomyslnie uruchomiony!");
+        if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
+        if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
+        if (getCommand("tpdeny") != null) getCommand("tpdeny").setExecutor(tpaCommand);
+
+        getLogger().info("BellLands zostalo pomyslnie uruchomione!");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("Zapisywanie dzialek i wylaczanie BellLands...");
-        // TODO: Zapis bazy danych
+        getLogger().info("BellLands zostalo wylaczone.");
+    }
+}
     }
 
     public static BellLands getInstance() {

@@ -2,20 +2,23 @@ package pl.bell.lands;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import pl.bell.lands.command.TpaCommand;
+import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.TPAManager;
 
 public final class BellLands extends JavaPlugin {
 
     private static BellLands instance;
     private TPAManager tpaManager;
+    private LandManager landManager;
 
     @Override
     public void onEnable() {
         instance = this;
         printBanner();
 
-        // INICJALIZACJA MANAGERA
+        // INICJALIZACJA MANAGERÓW
         this.tpaManager = new TPAManager();
+        this.landManager = new LandManager();
 
         // Rejestracja komend
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
@@ -38,6 +41,10 @@ public final class BellLands extends JavaPlugin {
 
     public TPAManager getTpaManager() {
         return tpaManager;
+    }
+
+    public LandManager getLandManager() {
+        return landManager;
     }
 
     private void printBanner() {

@@ -4,9 +4,10 @@ main: pl.bell.lands.BellLands
 api-version: '1.21'
 commands:
   tpa:
-    description: Wysyla prosbe o teleportacje do gracza
-    usage: /tpa <gracz>
+    description: Prosba o teleportacje
   tpaccept:
-    description: Akceptuje prosbe o teleportacje
+    description: Akceptacja teleportacji
   tpdeny:
-    description: Odrzuca prosbe o teleportacje
+    description: Odrzucenie teleportacji
+  claim:
+    description: Zaimuj teren na ktorym stoisz

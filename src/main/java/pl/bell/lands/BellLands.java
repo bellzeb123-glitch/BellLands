@@ -1,6 +1,7 @@
 package pl.bell.lands;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import pl.bell.lands.command.ClaimCommand;
 import pl.bell.lands.command.TpaCommand;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.TPAManager;
@@ -16,16 +17,17 @@ public final class BellLands extends JavaPlugin {
         instance = this;
         printBanner();
 
-        // INICJALIZACJA MANAGERÓW
         this.tpaManager = new TPAManager();
         this.landManager = new LandManager();
 
         // Rejestracja komend
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
+        ClaimCommand claimCommand = new ClaimCommand();
         
         if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
         if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
         if (getCommand("tpdeny") != null) getCommand("tpdeny").setExecutor(tpaCommand);
+        if (getCommand("claim") != null) getCommand("claim").setExecutor(claimCommand);
         
         getLogger().info("BellLands zostal pomyslnie uruchomiony!");
     }
@@ -39,13 +41,8 @@ public final class BellLands extends JavaPlugin {
         return instance;
     }
 
-    public TPAManager getTpaManager() {
-        return tpaManager;
-    }
-
-    public LandManager getLandManager() {
-        return landManager;
-    }
+    public TPAManager getTpaManager() { return tpaManager; }
+    public LandManager getLandManager() { return landManager; }
 
     private void printBanner() {
         var c = org.bukkit.Bukkit.getConsoleSender();

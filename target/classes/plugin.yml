@@ -1,0 +1,45 @@
+name: BellLands
+version: '1.26.1.2'
+main: pl.bell.lands.BellLands
+api-version: '1.21'
+description: System claimow i teleportacji dla serwerow Minecraft
+author: Bellzeb
+softdepend:
+  - Pl3xMap
+
+commands:
+  tpa:
+    description: Prosba o teleportacje
+    usage: /tpa <gracz>
+    permission: belllands.tpa
+  tpaccept:
+    description: Akceptacja teleportacji
+    usage: /tpaccept
+    permission: belllands.tpa
+  tpdeny:
+    description: Odrzucenie teleportacji
+    usage: /tpdeny
+    permission: belllands.tpa
+  claim:
+    description: Zajmij teren na ktorym stoisz
+    usage: /claim [unclaim|trust|untrust|flag|flags|info|help]
+    aliases: [dzialka, land]
+    permission: belllands.claim
+
+permissions:
+  belllands.*:
+    description: Wszystkie uprawnienia BellLands
+    default: op
+    children:
+      belllands.claim: true
+      belllands.tpa: true
+      belllands.admin: true
+  belllands.claim:
+    description: Pozwala na zajmowanie terenu i zarzadzanie dzialkami
+    default: true
+  belllands.tpa:
+    description: Pozwala na korzystanie z teleportacji TPA
+    default: true
+  belllands.admin:
+    description: Uprawnienia administracyjne (usuwanie cudzych claimow itp.)
+    default: op

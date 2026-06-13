@@ -2,6 +2,7 @@ package pl.bell.lands;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import pl.bell.lands.command.ClaimCommand;
+import pl.bell.lands.command.ClaimTabCompleter;
 import pl.bell.lands.command.TpaCommand;
 import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.listener.LandListener;
@@ -27,11 +28,15 @@ public final class BellLands extends JavaPlugin {
         // Rejestracja komend
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
         ClaimCommand claimCommand = new ClaimCommand();
+        ClaimTabCompleter claimTabCompleter = new ClaimTabCompleter();
         
         if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
         if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
         if (getCommand("tpdeny") != null) getCommand("tpdeny").setExecutor(tpaCommand);
-        if (getCommand("claim") != null) getCommand("claim").setExecutor(claimCommand);
+        if (getCommand("claim") != null) {
+            getCommand("claim").setExecutor(claimCommand);
+            getCommand("claim").setTabCompleter(claimTabCompleter);
+        }
 
         // Rejestracja listenera ochrony działek
         getServer().getPluginManager().registerEvents(new LandListener(), this);

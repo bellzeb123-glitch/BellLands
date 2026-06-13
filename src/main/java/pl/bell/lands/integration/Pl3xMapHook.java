@@ -1,82 +1,107 @@
 package pl.bell.lands.integration;
 
-import dev.pl3x.map.api.Pl3xMap;
-import dev.pl3x.map.api.Key;
-import dev.pl3x.map.api.SimpleLayer;
-import dev.pl3x.map.api.MapWorld;
-import dev.pl3x.map.api.marker.Marker;
-import dev.pl3x.map.api.marker.Rectangle;
-import dev.pl3x.map.api.point.Point;
+import net.pl3x.map.core.Pl3xMap;
+import net.pl3x.map.core.markers.Point;
+import net.pl3x.map.core.markers.layer.SimpleLayer;
+import net.pl3x.map.core.markers.marker.Marker;
+import net.pl3x.map.core.markers.option.Options;
+import net.pl3x.map.core.world.World;
 import org.bukkit.Bukkit;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.model.Land;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
 public class Pl3xMapHook {
 
-    private static SimpleLayer layer;
-    private static final Key LAYER_KEY = Key.of("belllands");
+    private static final String LAYER_KEY = "belllands";
+    private static final Map<String, SimpleLayer> layersByWorld = new HashMap<>();
 
     public static void init() {
         if (Bukkit.getPluginManager().getPlugin("Pl3xMap") == null) {
+            BellLands.getInstance().getLogger().info("Pl3xMap nie jest zainstalowany — mapa claimow wylaczona.");
             return;
         }
 
         Bukkit.getScheduler().runTaskLater(BellLands.getInstance(), () -> {
             try {
-                Pl3xMap.api().getWorldRegistry().forEach(Pl3xMapHook::registerWorld);
+                for (World world : Pl3xMap.api().getWorldRegistry()) {
+                    registerWorld(world);
+                }
                 drawAll();
-                BellLands.getInstance().getLogger().info("Polaczono z Pl3xMap! Dzialki sa teraz widoczne na mapie.");
+                BellLands.getInstance().getLogger().info("Polaczono z Pl3xMap! Dzialki sa widoczne na mapie.");
             } catch (Exception e) {
                 BellLands.getInstance().getLogger().warning("Nie udalo sie polaczyc z Pl3xMap: " + e.getMessage());
             }
         }, 40L);
     }
 
-    private static void registerWorld(MapWorld world) {
-        if (world.layerRegistry().has(LAYER_KEY)) return;
-        
-        // Utworzenie warstwy z nazwa wyswietlana
-        layer = new SimpleLayer("Dzialki BellLands", () -> "BellLands Claims");
-        world.layerRegistry().register(LAYER_KEY, layer);
+    private static void registerWorld(World world) {
+        String worldName = world.getName();
+        if (world.getLayerRegistry().has(LAYER_KEY)) {
+            layersByWorld.put(worldName, (SimpleLayer) world.getLayerRegistry().get(LAYER_KEY));
+            return;
+        }
+
+        SimpleLayer layer = new SimpleLayer(LAYER_KEY, () -> "BellLands Claims");
+        world.getLayerRegistry().register(LAYER_KEY, layer);
+        layersByWorld.put(worldName, layer);
     }
 
     public static void drawAll() {
-        if (layer == null) return;
-        layer.clear(); // Wyczyszczenie warstwy
+        for (SimpleLayer layer : layersByWorld.values()) {
+            layer.clearMarkers();
+        }
         for (Land land : BellLands.getInstance().getLandManager().getAllLands()) {
             drawLand(land);
         }
     }
 
     public static void drawLand(Land land) {
-        if (layer == null) return;
-        
+        Optional<SimpleLayer> layerOpt = getLayer(land.getWorldName());
+        if (layerOpt.isEmpty()) return;
+
+        SimpleLayer layer = layerOpt.get();
+        String markerKey = markerKey(land);
         int minX = land.getChunkX() * 16;
         int minZ = land.getChunkZ() * 16;
         int maxX = minX + 16;
         int maxZ = minZ + 16;
 
-        Key markerKey = Key.of("claim_" + land.getWorldName() + "_" + land.getChunkX() + "_" + land.getChunkZ());
-        
-        // Utworzenie prostokata na podstawie współrzędnych chunków
-        Rectangle rectangle = Marker.rectangle(Point.of(minX, minZ), Point.of(maxX, maxZ));
-        
-        // Stylizacja prostokata (czerwona ramka, polprzezroczyste wypelnienie)
-        rectangle.getOptions().setStrokeColor(0xFFFF0000); // ARGB - czerwony
-        rectangle.getOptions().setFillColor(0x33FF0000);   // ARGB - polprzezroczysty czerwony
-        rectangle.getOptions().setStrokeWeight(2);
-        
         String ownerName = Bukkit.getOfflinePlayer(land.getOwner()).getName();
         if (ownerName == null) ownerName = "Nieznany";
-        rectangle.getOptions().setTooltip("Dzialka gracza: " + ownerName);
 
-        // Rejestracja markera na warstwie
-        layer.register(markerKey, rectangle);
+        var rectangle = Marker.rectangle(markerKey, Point.of(minX, minZ), Point.of(maxX, maxZ));
+        rectangle.setOptions(Options.builder()
+            .strokeColor(0xFFFF0000)
+            .strokeWeight(2)
+            .fillColor(0x33FF0000)
+            .tooltipContent("Dzialka gracza: " + ownerName)
+            .build());
+
+        layer.removeMarker(markerKey);
+        layer.addMarker(rectangle);
     }
 
     public static void removeLand(Land land) {
-        if (layer == null) return;
-        Key markerKey = Key.of("claim_" + land.getWorldName() + "_" + land.getChunkX() + "_" + land.getChunkZ());
-        layer.unregister(markerKey);
+        getLayer(land.getWorldName()).ifPresent(layer -> layer.removeMarker(markerKey(land)));
+    }
+
+    private static String markerKey(Land land) {
+        return "claim_" + land.getWorldName() + "_" + land.getChunkX() + "_" + land.getChunkZ();
+    }
+
+    private static Optional<SimpleLayer> getLayer(String worldName) {
+        SimpleLayer layer = layersByWorld.get(worldName);
+        if (layer != null) return Optional.of(layer);
+
+        World world = Pl3xMap.api().getWorldRegistry().get(worldName);
+        if (world != null) {
+            registerWorld(world);
+            return Optional.ofNullable(layersByWorld.get(worldName));
+        }
+        return Optional.empty();
     }
 }

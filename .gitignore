@@ -1,0 +1,20 @@
+# Maven
+target/
+
+# Build artifacts
+*.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code / Cursor
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini

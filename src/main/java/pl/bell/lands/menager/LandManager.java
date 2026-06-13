@@ -27,9 +27,18 @@ public class LandManager {
         loadAll();
     }
 
+    public Collection<Land> getAllLands() {
+        return claimedLands.values();
+    }
+
     public void claimLand(Land land) {
         String key = generateKey(land.getWorldName(), land.getChunkX(), land.getChunkZ());
         claimedLands.put(key, land);
+        saveSingleLand(key, land);
+    }
+
+    public void saveLand(Land land) {
+        String key = generateKey(land.getWorldName(), land.getChunkX(), land.getChunkZ());
         saveSingleLand(key, land);
     }
 

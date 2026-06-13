@@ -3,6 +3,7 @@ package pl.bell.lands;
 import org.bukkit.plugin.java.JavaPlugin;
 import pl.bell.lands.command.ClaimCommand;
 import pl.bell.lands.command.TpaCommand;
+import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.listener.LandListener;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.TPAManager;
@@ -34,6 +35,9 @@ public final class BellLands extends JavaPlugin {
 
         // Rejestracja listenera ochrony działek
         getServer().getPluginManager().registerEvents(new LandListener(), this);
+
+        // Inicjalizacja integracji z Pl3xMap
+        Pl3xMapHook.init();
         
         getLogger().info("BellLands zostal pomyslnie uruchomiony!");
     }

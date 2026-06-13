@@ -136,7 +136,8 @@ public class LandListener implements Listener {
         Land land = landManager.getLandAt(chunk).orElse(null);
         if (land == null) return false;
 
-        return !land.getOwner().equals(player.getUniqueId());
+        // Anuluj akcję, jeśli gracz nie jest właścicielem AND nie jest zaufanym na tej działce
+        return !land.getOwner().equals(player.getUniqueId()) && !land.isTrusted(player.getUniqueId());
     }
 
     private boolean isProtectedInteractiveBlock(Material material) {

@@ -21,6 +21,7 @@ public final class BellLands extends JavaPlugin {
         // INICJALIZACJA MANAGERÓW
         this.tpaManager = new TPAManager();
         this.landManager = new LandManager();
+        this.landManager.init(); // Wczytanie zapisanych dzialek z lands.yml
 
         // Rejestracja komend
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
@@ -40,6 +41,9 @@ public final class BellLands extends JavaPlugin {
     @Override
     public void onDisable() {
         getLogger().info("Zapisywanie dzialek i wylaczanie BellLands...");
+        if (this.landManager != null) {
+            this.landManager.saveAll(); // Zapisanie dzialek do lands.yml
+        }
     }
 
     public static BellLands getInstance() {

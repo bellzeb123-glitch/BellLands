@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class ClaimTabCompleter implements TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
-        "unclaim", "trust", "untrust", "flag", "flags", "info", "gui", "help"
+        "unclaim", "trust", "untrust", "flag", "flags", "info", "menu", "help"
     );
 
     private static final List<String> BOOLEAN_VALUES = List.of("true", "false");

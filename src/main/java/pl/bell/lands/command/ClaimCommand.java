@@ -73,7 +73,7 @@ public class ClaimCommand implements CommandExecutor {
             case "flag" -> handleFlag(player, args, chunk, landManager, lang);
             case "flags" -> handleFlagsList(player, chunk, landManager, lang);
             case "info" -> handleInfo(player, chunk, landManager, lang);
-            case "gui" -> handleGui(player, chunk, landManager, lang);
+            case "menu" -> handleGui(player, chunk, landManager, lang);
             case "help" -> sendHelp(player, lang);
             default -> sendHelp(player, lang);
         }
@@ -281,7 +281,7 @@ public class ClaimCommand implements CommandExecutor {
         player.sendMessage(lang.componentRaw("help-flag"));
         player.sendMessage(lang.componentRaw("help-trust"));
         player.sendMessage(lang.componentRaw("help-untrust"));
-        player.sendMessage(lang.componentRaw("help-gui"));
+        player.sendMessage(lang.componentRaw("help-menu"));
         player.sendMessage(lang.componentRaw("help-help"));
         player.sendMessage(lang.componentRaw("help-footer"));
     }

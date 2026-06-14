@@ -22,7 +22,7 @@ commands:
     permission: belllands.tpa
   claim:
     description: Zajmij teren na ktorym stoisz
-    usage: /claim [unclaim|trust|untrust|flag|flags|info|gui|help]
+    usage: /claim [unclaim|trust|untrust|flag|flags|info|menu|help]
     aliases: [dzialka, land]
     permission: belllands.claim
   belllands:

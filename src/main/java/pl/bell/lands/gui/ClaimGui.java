@@ -60,13 +60,16 @@ public class ClaimGui {
             String lore = lang.getRaw("gui-flag-lore");
 
             ItemStack flagItem = item(FLAG_MATERIALS[i], flagName, status, lore);
-            if (value) {
-                flagItem.setType(FLAG_MATERIALS[i]);
-            }
             inv.setItem(9 + i, flagItem);
         }
 
-        // Slot 22: trusted players
+        // Slot 20: add trusted (green wool)
+        ItemStack addTrusted = item(Material.LIME_WOOL,
+            lang.getRaw("gui-add-trusted-name"),
+            lang.getRaw("gui-add-trusted-lore"));
+        inv.setItem(20, addTrusted);
+
+        // Slot 22: trusted players list / manage
         List<String> trustedLore = new ArrayList<>();
         if (land.getTrusted().isEmpty()) {
             trustedLore.add(lang.getRaw("gui-trusted-lore-empty"));
@@ -77,8 +80,10 @@ public class ClaimGui {
                 trustedLore.add(lang.getRaw("gui-trusted-lore-player", "player", name));
             }
         }
-        trustedLore.add("");
-        trustedLore.add(lang.getRaw("gui-trusted-lore-hint"));
+        if (!land.getTrusted().isEmpty()) {
+            trustedLore.add("");
+            trustedLore.add(lang.getRaw("gui-trusted-lore-hint"));
+        }
 
         ItemStack trusted = item(Material.PLAYER_HEAD,
             lang.getRaw("gui-trusted-name"),
@@ -87,6 +92,38 @@ public class ClaimGui {
 
         player.openInventory(inv);
         ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.MAIN);
+    }
+
+    public static void openAddTrusted(Player player, Land land) {
+        LangManager lang = BellLands.getInstance().getLangManager();
+
+        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+        online.remove(player);
+        online.removeIf(p -> land.isTrusted(p.getUniqueId()));
+
+        int size = Math.max(9, ((online.size() + 1) / 9 + 1) * 9);
+        if (size > 54) size = 54;
+
+        Inventory inv = Bukkit.createInventory(null, size,
+            lang.colorize(lang.getRaw("gui-add-trusted-title")));
+
+        int slot = 0;
+        for (Player p : online) {
+            if (slot >= size - 1) break;
+
+            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta meta = (SkullMeta) head.getItemMeta();
+            meta.setOwningPlayer(p);
+            meta.displayName(lang.colorize("&a" + p.getName()));
+            meta.lore(List.of(lang.colorize(lang.getRaw("gui-add-trusted-lore"))));
+            head.setItemMeta(meta);
+            inv.setItem(slot++, head);
+        }
+
+        inv.setItem(size - 1, item(Material.ARROW, lang.getRaw("gui-back")));
+
+        player.openInventory(inv);
+        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.ADD_TRUSTED);
     }
 
     public static void openRemoveTrusted(Player player, Land land) {
@@ -114,7 +151,6 @@ public class ClaimGui {
             inv.setItem(slot++, head);
         }
 
-        // Back button in last slot
         inv.setItem(size - 1, item(Material.ARROW, lang.getRaw("gui-back")));
 
         player.openInventory(inv);

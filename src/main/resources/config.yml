@@ -1,0 +1,21 @@
+# BellLands Configuration
+
+language: pl
+
+claims:
+  max-per-player: 5
+  default-flags:
+    pvp: false
+    explosions: false
+    fire-spread: false
+    mob-spawning: true
+    mob-damage: true
+    lava-flow: false
+    water-flow: false
+    piston: false
+    leaf-decay: true
+    use: false
+
+tpa:
+  timeout-seconds: 60
+  cooldown-seconds: 30

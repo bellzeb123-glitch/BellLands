@@ -1,0 +1,142 @@
+# BellLands — English language file
+
+prefix: "&8[&6BellLands&8] &r"
+
+# ── General ──────────────────────────────────────────────
+only-players: "&cThis command is for players only."
+no-permission: "&cYou don't have permission to do this!"
+
+# ── Claim ────────────────────────────────────────────────
+claim-success: "&aClaimed! Chunk: &f{x}&7, &f{z}"
+claim-already-claimed: "&cThis land is already claimed!"
+claim-limit-reached: "&cYou have reached the claim limit! ({current}/{max})"
+
+# ── Unclaim ──────────────────────────────────────────────
+unclaim-success: "&aRemoved claim from this land."
+unclaim-not-claimed: "&cThis land is not claimed."
+unclaim-not-owner: "&cOnly the owner can unclaim this land!"
+
+# ── Trust ────────────────────────────────────────────────
+trust-usage: "&cUsage: &e/claim trust <player>"
+trust-not-claimed: "&cThis land is not claimed."
+trust-not-owner: "&cOnly the owner can manage trusted players!"
+trust-already: "&eThis player is already trusted on this land."
+trust-success: "&aAdded &f{player} &ato trusted on this land."
+
+# ── Untrust ──────────────────────────────────────────────
+untrust-usage: "&cUsage: &e/claim untrust <player>"
+untrust-not-claimed: "&cThis land is not claimed."
+untrust-not-owner: "&cOnly the owner can manage trusted players!"
+untrust-not-trusted: "&cThis player is not trusted on this land."
+untrust-success: "&aRemoved &f{player} &afrom trusted on this land."
+
+# ── Flag ─────────────────────────────────────────────────
+flag-usage: "&cUsage: &e/claim flag <flag> <true|false>"
+flag-available: "&7Available flags: &f{flags}"
+flag-not-claimed: "&cThis land is not claimed."
+flag-unknown: "&cUnknown flag: &e{flag}"
+flag-not-owner: "&cOnly the owner can change flags!"
+flag-invalid-value: "&cValue must be &etrue &cor &efalse&c."
+flag-value: "&7Flag &f{flag}&7: {value}"
+flag-set: "&aFlag &f{flag} &aset to: {value}"
+flag-enabled: "&aenabled"
+flag-disabled: "&cdisabled"
+
+# ── Flags list ───────────────────────────────────────────
+flags-header: "&6=== Land Flags ==="
+flags-entry-on: "&7  {flag}: &a✔ enabled"
+flags-entry-off: "&7  {flag}: &c✘ disabled"
+flags-footer: "&6====================="
+flags-hint: "&7Change flag: &e/claim flag <name> <true|false>"
+flags-not-claimed: "&eThis land is free."
+
+# ── Info ─────────────────────────────────────────────────
+info-header: "&6=== Land Info ==="
+info-owner: "&7Owner: &f{owner}"
+info-chunk: "&7Chunk: &f{x}&7, &f{z}"
+info-world: "&7World: &f{world}"
+info-trusted: "&7Trusted: &f{trusted}"
+info-trusted-none: "None"
+info-unknown-owner: "Unknown"
+info-footer: "&6=============================="
+info-not-claimed: "&eThis land is free."
+
+# ── Info flags ───────────────────────────────────────────
+info-flag-pvp: "&7PVP: {value}"
+info-flag-explosions: "&7Explosions: {value}"
+info-flag-fire-spread: "&7Fire spread: {value}"
+info-flag-mob-spawning: "&7Mobs (spawn): {value}"
+info-flag-mob-damage: "&7Mobs (damage): {value}"
+info-flag-lava-flow: "&7Lava: {value}"
+info-flag-water-flow: "&7Water: {value}"
+info-flag-piston: "&7Pistons: {value}"
+info-flag-leaf-decay: "&7Leaf decay: {value}"
+info-flag-use: "&7Interaction (use): {value}"
+info-flag-on: "&aenabled"
+info-flag-off: "&cdisabled"
+
+# ── Help ─────────────────────────────────────────────────
+help-header: "&6=== /claim Commands ==="
+help-claim: "&e/claim &7- Claim the chunk you're standing on"
+help-unclaim: "&e/claim unclaim &7- Remove claim"
+help-info: "&e/claim info &7- Land info"
+help-flags: "&e/claim flags &7- List all flags"
+help-flag: "&e/claim flag <flag> <true|false> &7- Change flag"
+help-trust: "&e/claim trust <player> &7- Add trusted player"
+help-untrust: "&e/claim untrust <player> &7- Remove trusted player"
+help-gui: "&e/claim gui &7- Open land management GUI"
+help-help: "&e/claim help &7- This help"
+help-footer: "&6======================"
+
+# ── Protection messages ──────────────────────────────────
+protection-land-belongs: "&cThis land belongs to someone else!"
+protection-pvp-disabled: "&cPVP is disabled on this land!"
+
+# ── TPA ──────────────────────────────────────────────────
+tpa-usage: "&cUsage: /tpa <player>"
+tpa-player-not-found: "&cPlayer not found."
+tpa-sent: "&aTeleport request sent to {player}"
+tpa-received: "&e{player} wants to teleport to you. Type /tpaccept"
+tpa-accepted: "&aRequest accepted."
+tpa-teleported: "&aTeleported!"
+tpa-no-request: "&cNo active teleport requests."
+tpa-denied: "&cRequest denied."
+tpa-no-deny: "&cNo requests to deny."
+tpa-sender-offline: "&cThe player who sent the request is offline."
+
+# ── Language ─────────────────────────────────────────────
+language-usage: "&cUsage: &e/belllands language <en|pl>"
+language-invalid: "&cAvailable languages: &een&c, &epl"
+language-changed: "&aLanguage changed to &f{lang}&a."
+
+# ── GUI ──────────────────────────────────────────────────
+gui-title: "&8Land: &6{x}, {z}"
+gui-info-name: "&6Land Info"
+gui-info-owner: "&7Owner: &f{owner}"
+gui-info-chunk: "&7Chunk: &f{x}, {z}"
+gui-info-world: "&7World: &f{world}"
+gui-info-trusted-count: "&7Trusted: &f{count}"
+
+gui-flag-on: "&aEnabled"
+gui-flag-off: "&cDisabled"
+gui-flag-lore: "&7Click to toggle"
+
+gui-flag-pvp: "&ePVP"
+gui-flag-explosions: "&eExplosions"
+gui-flag-fire-spread: "&eFire Spread"
+gui-flag-mob-spawning: "&eMob Spawning"
+gui-flag-mob-damage: "&eMob Damage"
+gui-flag-lava-flow: "&eLava Flow"
+gui-flag-water-flow: "&eWater Flow"
+gui-flag-piston: "&ePistons"
+gui-flag-leaf-decay: "&eLeaf Decay"
+gui-flag-use: "&eUse (Interaction)"
+
+gui-trusted-name: "&eTrusted Players"
+gui-trusted-lore-player: "&7- {player}"
+gui-trusted-lore-empty: "&7No trusted players"
+gui-trusted-lore-hint: "&eClick to manage"
+
+gui-remove-trusted-title: "&8Remove Trusted"
+gui-remove-trusted-lore: "&cClick to remove"
+gui-back: "&7← Back"

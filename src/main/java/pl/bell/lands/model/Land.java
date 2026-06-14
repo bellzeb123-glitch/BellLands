@@ -1,5 +1,7 @@
 package pl.bell.lands.model;
 
+import pl.bell.lands.BellLands;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -15,7 +17,6 @@ public class Land {
     private final Map<String, Boolean> flags;
     private final Set<UUID> trusted;
 
-    // Lista wszystkich obslugiwanych flag
     public static final String[] ALL_FLAGS = {
         "pvp", "explosions", "fire-spread", "mob-spawning", "mob-damage",
         "lava-flow", "water-flow", "piston", "leaf-decay", "use"
@@ -29,17 +30,18 @@ public class Land {
         this.flags = new HashMap<>();
         this.trusted = new HashSet<>();
 
-        // Domyslne flagi — bezpieczne ustawienia (wszystko zablokowane)
-        flags.put("pvp", false);           // PVP wylaczone
-        flags.put("explosions", false);    // Wybuchy zablokowane
-        flags.put("fire-spread", false);   // Rozprzestrzenianie ognia zablokowane
-        flags.put("mob-spawning", true);   // Spawnowanie mobow wlaczone
-        flags.put("mob-damage", true);     // Obrazenia od mobow wlaczone
-        flags.put("lava-flow", false);     // Rozlewanie lawy zablokowane
-        flags.put("water-flow", false);    // Rozlewanie wody zablokowane
-        flags.put("piston", false);        // Tloki z zewnatrz zablokowane
-        flags.put("leaf-decay", true);     // Rozpad lisci wlaczony
-        flags.put("use", false);           // Interakcja obcych z blokami zablokowana
+        var config = BellLands.getInstance().getConfig();
+        for (String flag : ALL_FLAGS) {
+            boolean def = config.getBoolean("claims.default-flags." + flag, getHardcodedDefault(flag));
+            flags.put(flag, def);
+        }
+    }
+
+    private static boolean getHardcodedDefault(String flag) {
+        return switch (flag) {
+            case "mob-spawning", "mob-damage", "leaf-decay" -> true;
+            default -> false;
+        };
     }
 
     public UUID getOwner() { return owner; }
@@ -55,9 +57,6 @@ public class Land {
     public void addTrusted(UUID uuid) { trusted.add(uuid); }
     public void removeTrusted(UUID uuid) { trusted.remove(uuid); }
 
-    /**
-     * Sprawdza czy podana nazwa flagi jest prawidlowa.
-     */
     public static boolean isValidFlag(String flag) {
         for (String f : ALL_FLAGS) {
             if (f.equalsIgnoreCase(flag)) return true;

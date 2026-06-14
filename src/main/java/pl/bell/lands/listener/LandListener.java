@@ -15,6 +15,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import pl.bell.lands.BellLands;
+import pl.bell.lands.config.LangManager;
 import pl.bell.lands.model.Land;
 import pl.bell.lands.manager.LandManager;
 
@@ -23,15 +24,12 @@ import java.util.Optional;
 
 public class LandListener implements Listener {
 
-    // ========================================================
-    //  OCHRONA BUDOWANIA / NISZCZENIA
-    // ========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         if (shouldCancelAction(player, event.getBlock().getChunk())) {
-            player.sendMessage("§cTen teren nalezy do kogos innego!");
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
             event.setCancelled(true);
         }
     }
@@ -40,14 +38,11 @@ public class LandListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
         if (shouldCancelAction(player, event.getBlock().getChunk())) {
-            player.sendMessage("§cTen teren nalezy do kogos innego!");
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
             event.setCancelled(true);
         }
     }
-
-    // ========================================================
-    //  OCHRONA INTERAKCJI (flaga: use)
-    // ========================================================
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
@@ -61,21 +56,15 @@ public class LandListener implements Listener {
         if (opt.isEmpty()) return;
 
         Land land = opt.get();
-
-        // Wlasciciel i zaufani zawsze moga
         if (land.getOwner().equals(player.getUniqueId()) || land.isTrusted(player.getUniqueId())) return;
         if (player.isOp()) return;
 
-        // Flaga "use" kontroluje interakcje z blokami
         if (!land.getFlag("use") && isProtectedInteractiveBlock(block.getType())) {
-            player.sendMessage("§cTen teren nalezy do kogos innego!");
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
             event.setCancelled(true);
         }
     }
-
-    // ========================================================
-    //  PVP (flaga: pvp)
-    // ========================================================
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
@@ -95,20 +84,16 @@ public class LandListener implements Listener {
         Optional<Land> opt = landManager.getLandAt(chunk);
 
         if (opt.isPresent() && !opt.get().getFlag("pvp")) {
-            attacker.sendMessage("§cPVP jest wylaczone na tym terenie!");
+            attacker.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-pvp-disabled"));
             event.setCancelled(true);
         }
     }
-
-    // ========================================================
-    //  OBRAZENIA OD MOBOW (flaga: mob-damage)
-    // ========================================================
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onMobDamagePlayer(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
-        // Sprawdz czy atakujacy to mob (nie gracz)
         boolean isMobAttack = false;
         if (event.getDamager() instanceof Monster) {
             isMobAttack = true;
@@ -128,10 +113,6 @@ public class LandListener implements Listener {
         }
     }
 
-    // ========================================================
-    //  WYBUCHY (flaga: explosions)
-    // ========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
         handleExplosion(event.blockList());
@@ -142,13 +123,8 @@ public class LandListener implements Listener {
         handleExplosion(event.blockList());
     }
 
-    // ========================================================
-    //  SPAWNOWANIE MOBOW (flaga: mob-spawning)
-    // ========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onCreatureSpawn(CreatureSpawnEvent event) {
-        // Nie blokuj spawnerow, jajek i pluginow — tylko naturalne
         if (event.getSpawnReason() != CreatureSpawnEvent.SpawnReason.NATURAL
             && event.getSpawnReason() != CreatureSpawnEvent.SpawnReason.REINFORCEMENTS) {
             return;
@@ -164,10 +140,6 @@ public class LandListener implements Listener {
             event.setCancelled(true);
         }
     }
-
-    // ========================================================
-    //  ROZPRZESTRZENIANIE OGNIA (flaga: fire-spread)
-    // ========================================================
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockIgnite(BlockIgniteEvent event) {
@@ -185,10 +157,6 @@ public class LandListener implements Listener {
         }
     }
 
-    // ========================================================
-    //  ROZLEWANIE CIECZY (flagi: lava-flow, water-flow)
-    // ========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockFromTo(BlockFromToEvent event) {
         Block fromBlock = event.getBlock();
@@ -202,15 +170,12 @@ public class LandListener implements Listener {
         Land toLand = opt.get();
         Material fromType = fromBlock.getType();
 
-        // Sprawdz czy to lava czy woda
         boolean isLava = fromType == Material.LAVA;
         boolean isWater = fromType == Material.WATER;
 
         if (isLava && !toLand.getFlag("lava-flow")) {
-            // Lava z zewnatrz lub wewnatrz — zablokowana jesli flaga wylaczona
             Chunk fromChunk = fromBlock.getChunk();
             Optional<Land> fromOpt = landManager.getLandAt(fromChunk);
-            // Blokuj jesli plynie z terenu obcego lub flaga wylaczona
             if (fromOpt.isEmpty() || !fromOpt.get().getOwner().equals(toLand.getOwner())) {
                 event.setCancelled(true);
                 return;
@@ -226,7 +191,6 @@ public class LandListener implements Listener {
             }
         }
 
-        // Ogolna ochrona — ciecz z obcego claima do naszego
         if (!isLava && !isWater) {
             Chunk fromChunk = fromBlock.getChunk();
             if (fromChunk.getX() != toChunk.getX() || fromChunk.getZ() != toChunk.getZ()) {
@@ -237,10 +201,6 @@ public class LandListener implements Listener {
             }
         }
     }
-
-    // ========================================================
-    //  TLOKI (flaga: piston)
-    // ========================================================
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent event) {
@@ -258,14 +218,11 @@ public class LandListener implements Listener {
 
         for (Block moved : movedBlocks) {
             Chunk movedChunk = moved.getChunk();
-
-            // Sprawdz czy tlok przesuwa bloki miedzy roznymi claimami
             Optional<Land> movedLand = landManager.getLandAt(movedChunk);
             Optional<Land> pistonLand = landManager.getLandAt(pistonChunk);
 
             if (movedLand.isPresent()) {
                 Land land = movedLand.get();
-                // Jesli flaga piston jest wylaczona, blokuj tloki z zewnatrz
                 if (!land.getFlag("piston")) {
                     if (pistonLand.isEmpty() || !pistonLand.get().getOwner().equals(land.getOwner())) {
                         event.setCancelled(true);
@@ -274,7 +231,6 @@ public class LandListener implements Listener {
                 }
             }
 
-            // Sprawdz takze docelowy chunk (przesuniety blok)
             Block destination = moved.getRelative(event.getDirection());
             Chunk destChunk = destination.getChunk();
             Optional<Land> destLand = landManager.getLandAt(destChunk);
@@ -291,10 +247,6 @@ public class LandListener implements Listener {
         }
     }
 
-    // ========================================================
-    //  ROZPAD LISCI (flaga: leaf-decay)
-    // ========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onLeavesDecay(LeavesDecayEvent event) {
         Chunk chunk = event.getBlock().getChunk();
@@ -305,10 +257,6 @@ public class LandListener implements Listener {
             event.setCancelled(true);
         }
     }
-
-    // ========================================================
-    //  METODY POMOCNICZE
-    // ========================================================
 
     private void handleExplosion(java.util.List<Block> blocks) {
         LandManager landManager = BellLands.getInstance().getLandManager();
@@ -331,8 +279,6 @@ public class LandListener implements Listener {
         if (opt.isEmpty()) return false;
 
         Land land = opt.get();
-
-        // Anuluj akcje, jesli gracz nie jest wlascicielem I nie jest zaufanym
         return !land.getOwner().equals(player.getUniqueId()) && !land.isTrusted(player.getUniqueId());
     }
 

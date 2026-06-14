@@ -1,9 +1,12 @@
 package pl.bell.lands;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import pl.bell.lands.command.BellLandsCommand;
 import pl.bell.lands.command.ClaimCommand;
 import pl.bell.lands.command.ClaimTabCompleter;
 import pl.bell.lands.command.TpaCommand;
+import pl.bell.lands.config.LangManager;
+import pl.bell.lands.gui.ClaimGuiListener;
 import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.listener.LandListener;
 import pl.bell.lands.manager.LandManager;
@@ -14,22 +17,25 @@ public final class BellLands extends JavaPlugin {
     private static BellLands instance;
     private TPAManager tpaManager;
     private LandManager landManager;
+    private LangManager langManager;
 
     @Override
     public void onEnable() {
         instance = this;
         printBanner();
 
-        // INICJALIZACJA MANAGERÓW
-        this.tpaManager = new TPAManager();
-        this.landManager = new LandManager();
-        this.landManager.init(); // Wczytanie zapisanych dzialek z lands.yml
+        saveDefaultConfig();
 
-        // Rejestracja komend
+        this.langManager = new LangManager(this);
+        this.tpaManager = new TPAManager(this);
+        this.landManager = new LandManager();
+        this.landManager.init();
+
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
         ClaimCommand claimCommand = new ClaimCommand();
         ClaimTabCompleter claimTabCompleter = new ClaimTabCompleter();
-        
+        BellLandsCommand bellLandsCommand = new BellLandsCommand();
+
         if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
         if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
         if (getCommand("tpdeny") != null) getCommand("tpdeny").setExecutor(tpaCommand);
@@ -37,13 +43,16 @@ public final class BellLands extends JavaPlugin {
             getCommand("claim").setExecutor(claimCommand);
             getCommand("claim").setTabCompleter(claimTabCompleter);
         }
+        if (getCommand("belllands") != null) {
+            getCommand("belllands").setExecutor(bellLandsCommand);
+            getCommand("belllands").setTabCompleter(bellLandsCommand);
+        }
 
-        // Rejestracja listenera ochrony działek
         getServer().getPluginManager().registerEvents(new LandListener(), this);
+        getServer().getPluginManager().registerEvents(new ClaimGuiListener(), this);
 
-        // Inicjalizacja integracji z Pl3xMap
         Pl3xMapHook.init();
-        
+
         getLogger().info("BellLands zostal pomyslnie uruchomiony!");
     }
 
@@ -51,8 +60,14 @@ public final class BellLands extends JavaPlugin {
     public void onDisable() {
         getLogger().info("Zapisywanie dzialek i wylaczanie BellLands...");
         if (this.landManager != null) {
-            this.landManager.saveAll(); // Zapisanie dzialek do lands.yml
+            this.landManager.saveAll();
         }
+    }
+
+    public void reload() {
+        reloadConfig();
+        if (langManager != null) langManager.reload();
+        if (tpaManager != null) tpaManager.reloadConfig();
     }
 
     public static BellLands getInstance() {
@@ -61,6 +76,7 @@ public final class BellLands extends JavaPlugin {
 
     public TPAManager getTpaManager() { return tpaManager; }
     public LandManager getLandManager() { return landManager; }
+    public LangManager getLangManager() { return langManager; }
 
     private void printBanner() {
         var c = org.bukkit.Bukkit.getConsoleSender();

@@ -1,0 +1,142 @@
+# BellLands — Polski plik językowy
+
+prefix: "&8[&6BellLands&8] &r"
+
+# ── Ogólne ───────────────────────────────────────────────
+only-players: "&cKomenda tylko dla graczy."
+no-permission: "&cNie masz uprawnien do tego!"
+
+# ── Claim ────────────────────────────────────────────────
+claim-success: "&aZajales teren! Chunk: &f{x}&7, &f{z}"
+claim-already-claimed: "&cTen teren jest juz zajety!"
+claim-limit-reached: "&cOsiagnales limit dzialek! ({current}/{max})"
+
+# ── Unclaim ──────────────────────────────────────────────
+unclaim-success: "&aUsunales claim z tego terenu."
+unclaim-not-claimed: "&cTen teren nie jest zajety przez nikogo."
+unclaim-not-owner: "&cTylko wlasciciel moze usunac ten claim!"
+
+# ── Trust ────────────────────────────────────────────────
+trust-usage: "&cUzycie: &e/claim trust <gracz>"
+trust-not-claimed: "&cTen teren nie nalezy do nikogo."
+trust-not-owner: "&cTylko wlasciciel moze zarzadzac zaufanymi!"
+trust-already: "&eTen gracz jest juz zaufany na tej dzialce."
+trust-success: "&aDodano gracza &f{player} &ado zaufanych na tej dzialce."
+
+# ── Untrust ──────────────────────────────────────────────
+untrust-usage: "&cUzycie: &e/claim untrust <gracz>"
+untrust-not-claimed: "&cTen teren nie nalezy do nikogo."
+untrust-not-owner: "&cTylko wlasciciel moze zarzadzac zaufanymi!"
+untrust-not-trusted: "&cTen gracz nie jest zaufany na tej dzialce."
+untrust-success: "&aUsunieto gracza &f{player} &az zaufanych na tej dzialce."
+
+# ── Flag ─────────────────────────────────────────────────
+flag-usage: "&cUzycie: &e/claim flag <flaga> <true|false>"
+flag-available: "&7Dostepne flagi: &f{flags}"
+flag-not-claimed: "&cTen teren nie nalezy do nikogo."
+flag-unknown: "&cNieznana flaga: &e{flag}"
+flag-not-owner: "&cTylko wlasciciel moze zmieniac flagi!"
+flag-invalid-value: "&cWartosc musi byc &etrue &club &efalse&c."
+flag-value: "&7Flaga &f{flag}&7: {value}"
+flag-set: "&aFlaga &f{flag} &azostala ustawiona na: {value}"
+flag-enabled: "&awlaczona"
+flag-disabled: "&cwylaczona"
+
+# ── Flags list ───────────────────────────────────────────
+flags-header: "&6=== Flagi dzialki ==="
+flags-entry-on: "&7  {flag}: &a✔ wlaczona"
+flags-entry-off: "&7  {flag}: &c✘ wylaczona"
+flags-footer: "&6====================="
+flags-hint: "&7Zmien flage: &e/claim flag <nazwa> <true|false>"
+flags-not-claimed: "&eTen teren jest wolny."
+
+# ── Info ─────────────────────────────────────────────────
+info-header: "&6=== Informacje o Dzialce ==="
+info-owner: "&7Wlasciciel: &f{owner}"
+info-chunk: "&7Chunk: &f{x}&7, &f{z}"
+info-world: "&7Swiat: &f{world}"
+info-trusted: "&7Zaufani: &f{trusted}"
+info-trusted-none: "Brak"
+info-unknown-owner: "Nieznany"
+info-footer: "&6=============================="
+info-not-claimed: "&eTen teren jest wolny."
+
+# ── Info flags ───────────────────────────────────────────
+info-flag-pvp: "&7PVP: {value}"
+info-flag-explosions: "&7Wybuchy: {value}"
+info-flag-fire-spread: "&7Ogien: {value}"
+info-flag-mob-spawning: "&7Moby (spawn): {value}"
+info-flag-mob-damage: "&7Moby (obrazenia): {value}"
+info-flag-lava-flow: "&7Lava: {value}"
+info-flag-water-flow: "&7Woda: {value}"
+info-flag-piston: "&7Tloki: {value}"
+info-flag-leaf-decay: "&7Rozpad lisci: {value}"
+info-flag-use: "&7Interakcja (use): {value}"
+info-flag-on: "&awlaczone"
+info-flag-off: "&cwylaczone"
+
+# ── Help ─────────────────────────────────────────────────
+help-header: "&6=== Komendy /claim ==="
+help-claim: "&e/claim &7- Zajmuje chunk, na ktorym stoisz"
+help-unclaim: "&e/claim unclaim &7- Usuwa claim"
+help-info: "&e/claim info &7- Informacje o dzialce"
+help-flags: "&e/claim flags &7- Lista wszystkich flag"
+help-flag: "&e/claim flag <flaga> <true|false> &7- Zmienia flage"
+help-trust: "&e/claim trust <gracz> &7- Dodaje zaufanego gracza"
+help-untrust: "&e/claim untrust <gracz> &7- Usuwa zaufanego gracza"
+help-gui: "&e/claim gui &7- Otwiera GUI zarzadzania dzialka"
+help-help: "&e/claim help &7- Ta pomoc"
+help-footer: "&6======================"
+
+# ── Wiadomości ochrony ───────────────────────────────────
+protection-land-belongs: "&cTen teren nalezy do kogos innego!"
+protection-pvp-disabled: "&cPVP jest wylaczone na tym terenie!"
+
+# ── TPA ──────────────────────────────────────────────────
+tpa-usage: "&cUzycie: /tpa <gracz>"
+tpa-player-not-found: "&cNie znaleziono gracza."
+tpa-sent: "&aWyslano prosbe o teleportacje do {player}"
+tpa-received: "&e{player} chce sie do Ciebie teleportowac. Wpisz /tpaccept"
+tpa-accepted: "&aZaakceptowano prosbe."
+tpa-teleported: "&aTeleportowano!"
+tpa-no-request: "&cBrak aktywnych prosb o teleportacje."
+tpa-denied: "&cOdrzucono prosbe."
+tpa-no-deny: "&cBrak prosb do odrzucenia."
+tpa-sender-offline: "&cGracz, ktory wyslal prosbe, jest juz offline."
+
+# ── Language ─────────────────────────────────────────────
+language-usage: "&cUzycie: &e/belllands language <en|pl>"
+language-invalid: "&cDostepne jezyki: &een&c, &epl"
+language-changed: "&aZmieniono jezyk na &f{lang}&a."
+
+# ── GUI ──────────────────────────────────────────────────
+gui-title: "&8Dzialka: &6{x}, {z}"
+gui-info-name: "&6Informacje o dzialce"
+gui-info-owner: "&7Wlasciciel: &f{owner}"
+gui-info-chunk: "&7Chunk: &f{x}, {z}"
+gui-info-world: "&7Swiat: &f{world}"
+gui-info-trusted-count: "&7Zaufani: &f{count}"
+
+gui-flag-on: "&aWlaczona"
+gui-flag-off: "&cWylaczona"
+gui-flag-lore: "&7Kliknij aby przelaczac"
+
+gui-flag-pvp: "&ePVP"
+gui-flag-explosions: "&eWybuchy"
+gui-flag-fire-spread: "&eRozprzestrzenianie ognia"
+gui-flag-mob-spawning: "&eSpawnowanie mobow"
+gui-flag-mob-damage: "&eObrazenia od mobow"
+gui-flag-lava-flow: "&eRozlewanie lawy"
+gui-flag-water-flow: "&eRozlewanie wody"
+gui-flag-piston: "&eTloki"
+gui-flag-leaf-decay: "&eRozpad lisci"
+gui-flag-use: "&eInterakcja (use)"
+
+gui-trusted-name: "&eZaufani gracze"
+gui-trusted-lore-player: "&7- {player}"
+gui-trusted-lore-empty: "&7Brak zaufanych graczy"
+gui-trusted-lore-hint: "&eKliknij aby zarzadzac"
+
+gui-remove-trusted-title: "&8Usun zaufanego"
+gui-remove-trusted-lore: "&cKliknij aby usunac"
+gui-back: "&7← Powrot"

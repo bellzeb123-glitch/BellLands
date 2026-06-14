@@ -12,7 +12,6 @@ import java.util.*;
 
 public class LandManager {
 
-    // Klucz: "worldName;chunkX;chunkZ"
     private final Map<String, Land> claimedLands = new HashMap<>();
     private File file;
     private FileConfiguration config;
@@ -58,13 +57,32 @@ public class LandManager {
         return getLandAt(chunk).isPresent();
     }
 
+    public int getClaimCount(UUID owner) {
+        int count = 0;
+        for (Land land : claimedLands.values()) {
+            if (land.getOwner().equals(owner)) count++;
+        }
+        return count;
+    }
+
+    public int getMaxClaims(org.bukkit.entity.Player player) {
+        int configMax = BellLands.getInstance().getConfig().getInt("claims.max-per-player", 5);
+
+        for (int i = 100; i >= 1; i--) {
+            if (player.hasPermission("belllands.claims." + i)) {
+                return i;
+            }
+        }
+        return configMax;
+    }
+
     private String generateKey(String world, int x, int z) {
         return world + ";" + x + ";" + z;
     }
 
     public void saveAll() {
         if (config == null) return;
-        config.set("claims", null); // Wyczysc stare wpisy
+        config.set("claims", null);
         for (Map.Entry<String, Land> entry : claimedLands.entrySet()) {
             String key = entry.getKey();
             Land land = entry.getValue();
@@ -73,13 +91,11 @@ public class LandManager {
             config.set(path + ".world", land.getWorldName());
             config.set(path + ".x", land.getChunkX());
             config.set(path + ".z", land.getChunkZ());
-            
-            // Zapisz flagi
+
             for (Map.Entry<String, Boolean> flagEntry : land.getFlags().entrySet()) {
                 config.set(path + ".flags." + flagEntry.getKey(), flagEntry.getValue());
             }
 
-            // Zapisz zaufanych
             List<String> trustedList = new ArrayList<>();
             for (UUID uuid : land.getTrusted()) {
                 trustedList.add(uuid.toString());
@@ -95,7 +111,7 @@ public class LandManager {
         config.set(path + ".world", land.getWorldName());
         config.set(path + ".x", land.getChunkX());
         config.set(path + ".z", land.getChunkZ());
-        
+
         for (Map.Entry<String, Boolean> flagEntry : land.getFlags().entrySet()) {
             config.set(path + ".flags." + flagEntry.getKey(), flagEntry.getValue());
         }
@@ -110,7 +126,7 @@ public class LandManager {
 
     private void loadAll() {
         if (!file.exists()) return;
-        
+
         claimedLands.clear();
         var section = config.getConfigurationSection("claims");
         if (section == null) return;
@@ -127,7 +143,6 @@ public class LandManager {
             UUID owner = UUID.fromString(ownerStr);
             Land land = new Land(owner, world, x, z);
 
-            // Załaduj flagi
             var flagsSection = config.getConfigurationSection(path + ".flags");
             if (flagsSection != null) {
                 for (String flagName : flagsSection.getKeys(false)) {
@@ -135,7 +150,6 @@ public class LandManager {
                 }
             }
 
-            // Załaduj zaufanych
             List<String> trustedList = config.getStringList(path + ".trusted");
             for (String uuidStr : trustedList) {
                 try {

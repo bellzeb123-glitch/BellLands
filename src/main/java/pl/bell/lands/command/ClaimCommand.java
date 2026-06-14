@@ -8,6 +8,8 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pl.bell.lands.BellLands;
+import pl.bell.lands.config.LangManager;
+import pl.bell.lands.gui.ClaimGui;
 import pl.bell.lands.model.Land;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.integration.Pl3xMapHook;
@@ -19,8 +21,10 @@ public class ClaimCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        LangManager lang = BellLands.getInstance().getLangManager();
+
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cKomenda tylko dla graczy.");
+            sender.sendMessage(lang.component("only-players"));
             return true;
         }
 
@@ -28,261 +32,257 @@ public class ClaimCommand implements CommandExecutor {
         LandManager landManager = BellLands.getInstance().getLandManager();
 
         if (args.length == 0) {
-            // Zajmowanie dzialki
+            // If standing on own land, open GUI; otherwise claim
+            Optional<Land> existing = landManager.getLandAt(chunk);
+            if (existing.isPresent() && existing.get().getOwner().equals(player.getUniqueId())) {
+                ClaimGui.openMain(player, existing.get());
+                return true;
+            }
+
             if (!player.hasPermission("belllands.claim") && !player.isOp()) {
-                player.sendMessage("§cNie masz uprawnien do zajmowania terenu!");
+                player.sendMessage(lang.component("no-permission"));
                 return true;
             }
             if (landManager.isClaimed(chunk)) {
-                player.sendMessage("§cTen teren jest juz zajety!");
+                player.sendMessage(lang.component("claim-already-claimed"));
+                return true;
+            }
+
+            int current = landManager.getClaimCount(player.getUniqueId());
+            int max = landManager.getMaxClaims(player);
+            if (current >= max) {
+                player.sendMessage(lang.component("claim-limit-reached",
+                    "current", current, "max", max));
                 return true;
             }
 
             Land land = new Land(player.getUniqueId(), chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
             landManager.claimLand(land);
-
-            // Wyrysowanie na mapie
             Pl3xMapHook.drawLand(land);
 
-            player.sendMessage("§aZajales teren! Chunk: §f" + chunk.getX() + "§7, §f" + chunk.getZ());
+            player.sendMessage(lang.component("claim-success",
+                "x", chunk.getX(), "z", chunk.getZ()));
             return true;
         }
 
         String sub = args[0].toLowerCase();
         switch (sub) {
-            case "unclaim" -> handleUnclaim(player, chunk, landManager);
-            case "trust" -> handleTrust(player, args, chunk, landManager);
-            case "untrust" -> handleUntrust(player, args, chunk, landManager);
-            case "flag" -> handleFlag(player, args, chunk, landManager);
-            case "flags" -> handleFlagsList(player, chunk, landManager);
-            case "info" -> handleInfo(player, chunk, landManager);
-            case "help" -> sendHelp(player);
-            default -> sendHelp(player);
+            case "unclaim" -> handleUnclaim(player, chunk, landManager, lang);
+            case "trust" -> handleTrust(player, args, chunk, landManager, lang);
+            case "untrust" -> handleUntrust(player, args, chunk, landManager, lang);
+            case "flag" -> handleFlag(player, args, chunk, landManager, lang);
+            case "flags" -> handleFlagsList(player, chunk, landManager, lang);
+            case "info" -> handleInfo(player, chunk, landManager, lang);
+            case "gui" -> handleGui(player, chunk, landManager, lang);
+            case "help" -> sendHelp(player, lang);
+            default -> sendHelp(player, lang);
         }
         return true;
     }
 
-    // ========================================================
-    //  UNCLAIM
-    // ========================================================
-
-    private void handleUnclaim(Player player, Chunk chunk, LandManager landManager) {
+    private void handleGui(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
         Optional<Land> opt = landManager.getLandAt(chunk);
         if (opt.isEmpty()) {
-            player.sendMessage("§cTen teren nie jest zajety przez nikogo.");
+            player.sendMessage(lang.component("info-not-claimed"));
             return;
         }
         Land land = opt.get();
         if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) {
-            player.sendMessage("§cTylko wlasciciel moze usunac ten claim!");
+            player.sendMessage(lang.component("unclaim-not-owner"));
+            return;
+        }
+        ClaimGui.openMain(player, land);
+    }
+
+    private void handleUnclaim(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
+        Optional<Land> opt = landManager.getLandAt(chunk);
+        if (opt.isEmpty()) {
+            player.sendMessage(lang.component("unclaim-not-claimed"));
+            return;
+        }
+        Land land = opt.get();
+        if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) {
+            player.sendMessage(lang.component("unclaim-not-owner"));
             return;
         }
         landManager.unclaimLand(chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
         Pl3xMapHook.removeLand(land);
-        player.sendMessage("§aUsunales claim z tego terenu.");
+        player.sendMessage(lang.component("unclaim-success"));
     }
 
-    // ========================================================
-    //  TRUST
-    // ========================================================
-
-    private void handleTrust(Player player, String[] args, Chunk chunk, LandManager landManager) {
+    private void handleTrust(Player player, String[] args, Chunk chunk, LandManager landManager, LangManager lang) {
         if (args.length < 2) {
-            player.sendMessage("§cUzycie: §e/claim trust <gracz>");
+            player.sendMessage(lang.component("trust-usage"));
             return;
         }
         Optional<Land> opt = landManager.getLandAt(chunk);
         if (opt.isEmpty()) {
-            player.sendMessage("§cTen teren nie nalezy do nikogo.");
+            player.sendMessage(lang.component("trust-not-claimed"));
             return;
         }
         Land land = opt.get();
         if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) {
-            player.sendMessage("§cTylko wlasciciel moze zarzadzac zaufanymi!");
+            player.sendMessage(lang.component("trust-not-owner"));
             return;
         }
 
         @SuppressWarnings("deprecation")
         OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
         if (land.isTrusted(target.getUniqueId())) {
-            player.sendMessage("§eTen gracz jest juz zaufany na tej dzialce.");
+            player.sendMessage(lang.component("trust-already"));
             return;
         }
         land.addTrusted(target.getUniqueId());
         landManager.saveLand(land);
-        player.sendMessage("§aDodano gracza §f" + target.getName() + " §ado zaufanych na tej dzialce.");
+        player.sendMessage(lang.component("trust-success", "player", target.getName()));
     }
 
-    // ========================================================
-    //  UNTRUST
-    // ========================================================
-
-    private void handleUntrust(Player player, String[] args, Chunk chunk, LandManager landManager) {
+    private void handleUntrust(Player player, String[] args, Chunk chunk, LandManager landManager, LangManager lang) {
         if (args.length < 2) {
-            player.sendMessage("§cUzycie: §e/claim untrust <gracz>");
+            player.sendMessage(lang.component("untrust-usage"));
             return;
         }
         Optional<Land> opt = landManager.getLandAt(chunk);
         if (opt.isEmpty()) {
-            player.sendMessage("§cTen teren nie nalezy do nikogo.");
+            player.sendMessage(lang.component("untrust-not-claimed"));
             return;
         }
         Land land = opt.get();
         if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) {
-            player.sendMessage("§cTylko wlasciciel moze zarzadzac zaufanymi!");
+            player.sendMessage(lang.component("untrust-not-owner"));
             return;
         }
 
         @SuppressWarnings("deprecation")
         OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
         if (!land.isTrusted(target.getUniqueId())) {
-            player.sendMessage("§cTen gracz nie jest zaufany na tej dzialce.");
+            player.sendMessage(lang.component("untrust-not-trusted"));
             return;
         }
         land.removeTrusted(target.getUniqueId());
         landManager.saveLand(land);
-        player.sendMessage("§aUsunieto gracza §f" + target.getName() + " §az zaufanych na tej dzialce.");
+        player.sendMessage(lang.component("untrust-success", "player", target.getName()));
     }
 
-    // ========================================================
-    //  FLAG (ustawianie pojedynczej flagi)
-    // ========================================================
-
-    private void handleFlag(Player player, String[] args, Chunk chunk, LandManager landManager) {
+    private void handleFlag(Player player, String[] args, Chunk chunk, LandManager landManager, LangManager lang) {
         if (args.length < 2) {
-            player.sendMessage("§cUzycie: §e/claim flag <flaga> <true|false>");
-            player.sendMessage("§7Dostepne flagi: §f" + String.join(", ", Land.ALL_FLAGS));
+            player.sendMessage(lang.component("flag-usage"));
+            player.sendMessage(lang.component("flag-available",
+                "flags", String.join(", ", Land.ALL_FLAGS)));
             return;
         }
         if (args.length < 3) {
-            // Pokaz wartosc danej flagi
             Optional<Land> opt = landManager.getLandAt(chunk);
             if (opt.isEmpty()) {
-                player.sendMessage("§cTen teren nie nalezy do nikogo.");
+                player.sendMessage(lang.component("flag-not-claimed"));
                 return;
             }
             String flag = args[1].toLowerCase();
             if (!Land.isValidFlag(flag)) {
-                player.sendMessage("§cNieznana flaga: §e" + flag);
-                player.sendMessage("§7Dostepne flagi: §f" + String.join(", ", Land.ALL_FLAGS));
+                player.sendMessage(lang.component("flag-unknown", "flag", flag));
+                player.sendMessage(lang.component("flag-available",
+                    "flags", String.join(", ", Land.ALL_FLAGS)));
                 return;
             }
             Land land = opt.get();
             boolean value = land.getFlag(flag);
-            player.sendMessage("§7Flaga §f" + flag + "§7: " + (value ? "§awlaczona" : "§cwylaczona"));
+            String valueStr = value ? lang.getRaw("flag-enabled") : lang.getRaw("flag-disabled");
+            player.sendMessage(lang.component("flag-value", "flag", flag, "value", valueStr));
             return;
         }
 
         Optional<Land> opt = landManager.getLandAt(chunk);
         if (opt.isEmpty()) {
-            player.sendMessage("§cTen teren nie nalezy do nikogo.");
+            player.sendMessage(lang.component("flag-not-claimed"));
             return;
         }
         Land land = opt.get();
         if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) {
-            player.sendMessage("§cTylko wlasciciel moze zmieniac flagi!");
+            player.sendMessage(lang.component("flag-not-owner"));
             return;
         }
 
         String flag = args[1].toLowerCase();
         if (!Land.isValidFlag(flag)) {
-            player.sendMessage("§cNieznana flaga: §e" + flag);
-            player.sendMessage("§7Dostepne flagi: §f" + String.join(", ", Land.ALL_FLAGS));
+            player.sendMessage(lang.component("flag-unknown", "flag", flag));
+            player.sendMessage(lang.component("flag-available",
+                "flags", String.join(", ", Land.ALL_FLAGS)));
             return;
         }
 
         String rawValue = args[2].toLowerCase();
         if (!rawValue.equals("true") && !rawValue.equals("false")) {
-            player.sendMessage("§cWartosc musi byc §etrue §club §efalse§c.");
+            player.sendMessage(lang.component("flag-invalid-value"));
             return;
         }
 
         boolean value = Boolean.parseBoolean(rawValue);
         land.setFlag(flag, value);
         landManager.saveLand(land);
-        player.sendMessage("§aFlaga §f" + flag + " §azostala ustawiona na: " + (value ? "§awlaczona" : "§cwylaczona"));
+        String valueStr = value ? lang.getRaw("flag-enabled") : lang.getRaw("flag-disabled");
+        player.sendMessage(lang.component("flag-set", "flag", flag, "value", valueStr));
     }
 
-    // ========================================================
-    //  FLAGS (lista wszystkich flag)
-    // ========================================================
-
-    private void handleFlagsList(Player player, Chunk chunk, LandManager landManager) {
+    private void handleFlagsList(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
         Optional<Land> opt = landManager.getLandAt(chunk);
         if (opt.isEmpty()) {
-            player.sendMessage("§eTen teren jest wolny.");
+            player.sendMessage(lang.component("flags-not-claimed"));
             return;
         }
         Land land = opt.get();
-        player.sendMessage("§6=== Flagi dzialki ===");
+        player.sendMessage(lang.componentRaw("flags-header"));
         for (String flag : Land.ALL_FLAGS) {
             boolean value = land.getFlag(flag);
-            String status = value ? "§a✔ wlaczona" : "§c✘ wylaczona";
-            player.sendMessage("§7  " + flag + ": " + status);
+            String key = value ? "flags-entry-on" : "flags-entry-off";
+            player.sendMessage(lang.componentRaw(key, "flag", flag));
         }
-        player.sendMessage("§6=====================");
-        player.sendMessage("§7Zmien flage: §e/claim flag <nazwa> <true|false>");
+        player.sendMessage(lang.componentRaw("flags-footer"));
+        player.sendMessage(lang.componentRaw("flags-hint"));
     }
 
-    // ========================================================
-    //  INFO
-    // ========================================================
-
-    private void handleInfo(Player player, Chunk chunk, LandManager landManager) {
+    private void handleInfo(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
         Optional<Land> opt = landManager.getLandAt(chunk);
         if (opt.isEmpty()) {
-            player.sendMessage("§eTen teren jest wolny.");
+            player.sendMessage(lang.component("info-not-claimed"));
             return;
         }
         Land land = opt.get();
         String ownerName = Bukkit.getOfflinePlayer(land.getOwner()).getName();
-        if (ownerName == null) ownerName = "Nieznany";
+        if (ownerName == null) ownerName = lang.getRaw("info-unknown-owner");
 
         String trustedNames = land.getTrusted().stream()
             .map(uuid -> Bukkit.getOfflinePlayer(uuid).getName())
             .filter(name -> name != null)
             .collect(Collectors.joining(", "));
-        if (trustedNames.isEmpty()) trustedNames = "Brak";
+        if (trustedNames.isEmpty()) trustedNames = lang.getRaw("info-trusted-none");
 
-        player.sendMessage("§6=== Informacje o Dzialce ===");
-        player.sendMessage("§7Wlasciciel: §f" + ownerName);
-        player.sendMessage("§7Chunk: §f" + land.getChunkX() + "§7, §f" + land.getChunkZ());
-        player.sendMessage("§7Swiat: §f" + land.getWorldName());
-        player.sendMessage("§7Zaufani: §f" + trustedNames);
-        player.sendMessage("§7");
+        player.sendMessage(lang.componentRaw("info-header"));
+        player.sendMessage(lang.componentRaw("info-owner", "owner", ownerName));
+        player.sendMessage(lang.componentRaw("info-chunk", "x", land.getChunkX(), "z", land.getChunkZ()));
+        player.sendMessage(lang.componentRaw("info-world", "world", land.getWorldName()));
+        player.sendMessage(lang.componentRaw("info-trusted", "trusted", trustedNames));
+        player.sendMessage(lang.componentRaw(""));
 
-        // Wypisz kluczowe flagi
-        player.sendMessage("§7PVP: " + formatFlag(land, "pvp"));
-        player.sendMessage("§7Wybuchy: " + formatFlag(land, "explosions"));
-        player.sendMessage("§7Ogien: " + formatFlag(land, "fire-spread"));
-        player.sendMessage("§7Moby (spawn): " + formatFlag(land, "mob-spawning"));
-        player.sendMessage("§7Moby (obrazenia): " + formatFlag(land, "mob-damage"));
-        player.sendMessage("§7Lava: " + formatFlag(land, "lava-flow"));
-        player.sendMessage("§7Woda: " + formatFlag(land, "water-flow"));
-        player.sendMessage("§7Tloki: " + formatFlag(land, "piston"));
-        player.sendMessage("§7Rozpad lisci: " + formatFlag(land, "leaf-decay"));
-        player.sendMessage("§7Interakcja (use): " + formatFlag(land, "use"));
-        player.sendMessage("§6============================");
+        String on = lang.getRaw("info-flag-on");
+        String off = lang.getRaw("info-flag-off");
+        for (String flag : Land.ALL_FLAGS) {
+            String val = land.getFlag(flag) ? on : off;
+            player.sendMessage(lang.componentRaw("info-flag-" + flag, "value", val));
+        }
+        player.sendMessage(lang.componentRaw("info-footer"));
     }
 
-    private String formatFlag(Land land, String flag) {
-        return land.getFlag(flag) ? "§awlaczone" : "§cwylaczone";
-    }
-
-    // ========================================================
-    //  HELP
-    // ========================================================
-
-    private void sendHelp(Player player) {
-        player.sendMessage("§6=== Komendy /claim ===");
-        player.sendMessage("§e/claim §7- Zajmuje chunk, na ktorym stoisz");
-        player.sendMessage("§e/claim unclaim §7- Usuwa claim");
-        player.sendMessage("§e/claim info §7- Informacje o dzialce");
-        player.sendMessage("§e/claim flags §7- Lista wszystkich flag");
-        player.sendMessage("§e/claim flag <flaga> <true|false> §7- Zmienia flage");
-        player.sendMessage("§e/claim trust <gracz> §7- Dodaje zaufanego gracza");
-        player.sendMessage("§e/claim untrust <gracz> §7- Usuwa zaufanego gracza");
-        player.sendMessage("§e/claim help §7- Ta pomoc");
-        player.sendMessage("§6======================");
+    private void sendHelp(Player player, LangManager lang) {
+        player.sendMessage(lang.componentRaw("help-header"));
+        player.sendMessage(lang.componentRaw("help-claim"));
+        player.sendMessage(lang.componentRaw("help-unclaim"));
+        player.sendMessage(lang.componentRaw("help-info"));
+        player.sendMessage(lang.componentRaw("help-flags"));
+        player.sendMessage(lang.componentRaw("help-flag"));
+        player.sendMessage(lang.componentRaw("help-trust"));
+        player.sendMessage(lang.componentRaw("help-untrust"));
+        player.sendMessage(lang.componentRaw("help-gui"));
+        player.sendMessage(lang.componentRaw("help-help"));
+        player.sendMessage(lang.componentRaw("help-footer"));
     }
 }

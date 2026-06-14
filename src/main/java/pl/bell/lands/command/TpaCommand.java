@@ -5,6 +5,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import pl.bell.lands.BellLands;
+import pl.bell.lands.config.LangManager;
 import pl.bell.lands.manager.TPAManager;
 
 public class TpaCommand implements CommandExecutor {
@@ -19,14 +21,16 @@ public class TpaCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) return true;
 
+        LangManager lang = BellLands.getInstance().getLangManager();
+
         if (label.equalsIgnoreCase("tpa")) {
             if (args.length == 0) {
-                player.sendMessage("§cUzycie: /tpa <gracz>");
+                player.sendMessage(lang.component("tpa-usage"));
                 return true;
             }
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null || !target.isOnline()) {
-                player.sendMessage("§cNie znaleziono gracza.");
+                player.sendMessage(lang.component("tpa-player-not-found"));
                 return true;
             }
             tpaManager.createRequest(player, target);

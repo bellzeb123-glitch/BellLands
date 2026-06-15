@@ -50,7 +50,7 @@ public class ClaimGuiListener implements Listener {
 
     private void handleMainGui(Player player, InventoryClickEvent event) {
         int slot = event.getRawSlot();
-        if (slot < 0 || slot > 26) return;
+        if (slot < 0 || slot > 35) return;
 
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
@@ -63,7 +63,7 @@ public class ClaimGuiListener implements Listener {
         Land land = opt.get();
         if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) return;
 
-        if (slot >= 9 && slot <= 18) {
+        if (slot >= 9 && slot <= 19) {
             int flagIndex = slot - 9;
             if (flagIndex < Land.ALL_FLAGS.length) {
                 String flag = Land.ALL_FLAGS[flagIndex];
@@ -74,14 +74,14 @@ public class ClaimGuiListener implements Listener {
             }
         }
 
-        // Slot 20: add trusted
-        if (slot == 20) {
+        // Slot 29: add trusted
+        if (slot == 29) {
             Bukkit.getScheduler().runTask(BellLands.getInstance(),
                 () -> ClaimGui.openAddTrusted(player, land));
         }
 
-        // Slot 22: remove trusted
-        if (slot == 22 && !land.getTrusted().isEmpty()) {
+        // Slot 31: remove trusted
+        if (slot == 31 && !land.getTrusted().isEmpty()) {
             Bukkit.getScheduler().runTask(BellLands.getInstance(),
                 () -> ClaimGui.openRemoveTrusted(player, land));
         }

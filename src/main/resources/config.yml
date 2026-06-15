@@ -7,6 +7,7 @@ claims:
   default-flags:
     pvp: false
     explosions: false
+    explosion-damage: false
     fire-spread: false
     mob-spawning: true
     mob-damage: true

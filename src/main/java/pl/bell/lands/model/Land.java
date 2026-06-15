@@ -18,7 +18,7 @@ public class Land {
     private final Set<UUID> trusted;
 
     public static final String[] ALL_FLAGS = {
-        "pvp", "explosions", "fire-spread", "mob-spawning", "mob-damage",
+        "pvp", "explosions", "explosion-damage", "fire-spread", "mob-spawning", "mob-damage",
         "lava-flow", "water-flow", "piston", "leaf-decay", "use"
     };
 

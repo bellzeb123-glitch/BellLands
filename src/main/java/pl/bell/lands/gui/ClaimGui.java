@@ -19,6 +19,7 @@ public class ClaimGui {
     private static final Material[] FLAG_MATERIALS = {
         Material.IRON_SWORD,        // pvp
         Material.TNT,               // explosions
+        Material.FIRE_CHARGE,       // explosion-damage
         Material.FLINT_AND_STEEL,   // fire-spread
         Material.ZOMBIE_HEAD,       // mob-spawning
         Material.SHIELD,            // mob-damage
@@ -34,7 +35,7 @@ public class ClaimGui {
 
         String title = lang.getRaw("gui-title",
             "x", land.getChunkX(), "z", land.getChunkZ());
-        Inventory inv = Bukkit.createInventory(null, 27,
+        Inventory inv = Bukkit.createInventory(null, 36,
             lang.colorize(title));
 
         // Slot 4: info
@@ -63,13 +64,13 @@ public class ClaimGui {
             inv.setItem(9 + i, flagItem);
         }
 
-        // Slot 20: add trusted (green wool)
+        // Slot 29: add trusted (green wool)
         ItemStack addTrusted = item(Material.LIME_WOOL,
             lang.getRaw("gui-add-trusted-name"),
             lang.getRaw("gui-add-trusted-lore"));
-        inv.setItem(20, addTrusted);
+        inv.setItem(29, addTrusted);
 
-        // Slot 22: trusted players list / manage
+        // Slot 31: trusted players list / manage
         List<String> trustedLore = new ArrayList<>();
         if (land.getTrusted().isEmpty()) {
             trustedLore.add(lang.getRaw("gui-trusted-lore-empty"));
@@ -88,7 +89,7 @@ public class ClaimGui {
         ItemStack trusted = item(Material.PLAYER_HEAD,
             lang.getRaw("gui-trusted-name"),
             trustedLore.toArray(String[]::new));
-        inv.setItem(22, trusted);
+        inv.setItem(31, trusted);
 
         player.openInventory(inv);
         ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.MAIN);

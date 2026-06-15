@@ -12,6 +12,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import pl.bell.lands.BellLands;
@@ -114,6 +115,22 @@ public class LandListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onExplosionDamage(EntityDamageEvent event) {
+        if (event.getCause() != EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
+            && event.getCause() != EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+            return;
+        }
+
+        Chunk chunk = event.getEntity().getLocation().getChunk();
+        LandManager landManager = BellLands.getInstance().getLandManager();
+        Optional<Land> opt = landManager.getLandAt(chunk);
+
+        if (opt.isPresent() && !opt.get().getFlag("explosion-damage")) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
         handleExplosion(event.blockList());
     }
@@ -174,23 +191,16 @@ public class LandListener implements Listener {
         boolean isWater = fromType == Material.WATER;
 
         if (isLava && !toLand.getFlag("lava-flow")) {
-            Chunk fromChunk = fromBlock.getChunk();
-            Optional<Land> fromOpt = landManager.getLandAt(fromChunk);
-            if (fromOpt.isEmpty() || !fromOpt.get().getOwner().equals(toLand.getOwner())) {
-                event.setCancelled(true);
-                return;
-            }
+            event.setCancelled(true);
+            return;
         }
 
         if (isWater && !toLand.getFlag("water-flow")) {
-            Chunk fromChunk = fromBlock.getChunk();
-            Optional<Land> fromOpt = landManager.getLandAt(fromChunk);
-            if (fromOpt.isEmpty() || !fromOpt.get().getOwner().equals(toLand.getOwner())) {
-                event.setCancelled(true);
-                return;
-            }
+            event.setCancelled(true);
+            return;
         }
 
+        // Block fluid from foreign claims into this claim
         if (!isLava && !isWater) {
             Chunk fromChunk = fromBlock.getChunk();
             if (fromChunk.getX() != toChunk.getX() || fromChunk.getZ() != toChunk.getZ()) {

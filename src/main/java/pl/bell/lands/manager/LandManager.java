@@ -21,6 +21,8 @@ public class LandManager {
     private final Set<UUID> outlinePlayers = ConcurrentHashMap.newKeySet();
     private File file;
     private FileConfiguration config;
+    private File limitsFile;
+    private FileConfiguration limitsConfig;
 
     public void init() {
         File folder = BellLands.getInstance().getDataFolder();
@@ -29,6 +31,8 @@ public class LandManager {
         }
         this.file = new File(folder, "lands.yml");
         this.config = YamlConfiguration.loadConfiguration(file);
+        this.limitsFile = new File(folder, "claim-limits.yml");
+        this.limitsConfig = YamlConfiguration.loadConfiguration(limitsFile);
         loadAll();
     }
 
@@ -72,14 +76,36 @@ public class LandManager {
     }
 
     public int getMaxClaims(org.bukkit.entity.Player player) {
-        int configMax = BellLands.getInstance().getConfig().getInt("claims.max-per-player", 5);
+        int override = getClaimLimitOverride(player.getUniqueId());
+        if (override > 0) return override;
 
         for (int i = 100; i >= 1; i--) {
             if (player.hasPermission("belllands.claims." + i)) {
                 return i;
             }
         }
-        return configMax;
+        return BellLands.getInstance().getConfig().getInt("claims.max-per-player", 5);
+    }
+
+    public int getClaimLimitOverride(UUID owner) {
+        return limitsConfig.getInt(owner.toString(), -1);
+    }
+
+    public void setClaimLimitOverride(UUID owner, int limit) {
+        if (limit <= 0) {
+            limitsConfig.set(owner.toString(), null);
+        } else {
+            limitsConfig.set(owner.toString(), limit);
+        }
+        saveLimitsFile();
+    }
+
+    private void saveLimitsFile() {
+        try {
+            limitsConfig.save(limitsFile);
+        } catch (IOException e) {
+            BellLands.getInstance().getLogger().severe("Failed to save claim-limits.yml: " + e.getMessage());
+        }
     }
 
     public boolean toggleAutoClaim(UUID player) {

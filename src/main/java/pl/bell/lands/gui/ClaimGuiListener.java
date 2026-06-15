@@ -24,7 +24,7 @@ public class ClaimGuiListener implements Listener {
 
     public enum GuiType { MAIN_MENU, FLAGS, GUEST_FLAGS, MEMBERS, ADD_TRUSTED, WARPS, MAP,
         ADMIN_MAIN, ADMIN_PLAYER_CLAIMS, ADMIN_CLAIM_DETAIL, ADMIN_WARPS,
-        ADMIN_SETTINGS, ADMIN_LOCKED_FLAGS, ADMIN_DEFAULTS }
+        ADMIN_SETTINGS, ADMIN_LOCKED_FLAGS, ADMIN_DEFAULTS, ADMIN_DEFAULTS_GUEST }
 
     private static final Map<UUID, GuiType> openGuis = new HashMap<>();
 
@@ -45,7 +45,7 @@ public class ClaimGuiListener implements Listener {
         return type == GuiType.ADMIN_MAIN || type == GuiType.ADMIN_PLAYER_CLAIMS
             || type == GuiType.ADMIN_CLAIM_DETAIL || type == GuiType.ADMIN_WARPS
             || type == GuiType.ADMIN_SETTINGS || type == GuiType.ADMIN_LOCKED_FLAGS
-            || type == GuiType.ADMIN_DEFAULTS;
+            || type == GuiType.ADMIN_DEFAULTS || type == GuiType.ADMIN_DEFAULTS_GUEST;
     }
 
     @EventHandler
@@ -72,6 +72,7 @@ public class ClaimGuiListener implements Listener {
             case ADMIN_SETTINGS -> handleAdminSettings(player, event);
             case ADMIN_LOCKED_FLAGS -> handleAdminLockedFlags(player, event);
             case ADMIN_DEFAULTS -> handleAdminDefaults(player, event);
+            case ADMIN_DEFAULTS_GUEST -> handleAdminDefaultsGuest(player, event);
         }
     }
 
@@ -667,9 +668,12 @@ public class ClaimGuiListener implements Listener {
             return;
         }
 
-        BellLands plugin = BellLands.getInstance();
+        if (slot == 40) {
+            Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                () -> AdminGui.openDefaultsGuest(player));
+            return;
+        }
 
-        // Protection flags: slots 10-16 = 0-6, slots 19-24 = 7-12
         int flagIndex = -1;
         if (slot >= 10 && slot <= 16) flagIndex = slot - 10;
         else if (slot >= 19 && slot <= 24) flagIndex = slot - 19 + 7;
@@ -677,14 +681,29 @@ public class ClaimGuiListener implements Listener {
         if (flagIndex >= 0 && flagIndex < Land.ALL_FLAGS.length) {
             String flag = Land.ALL_FLAGS[flagIndex];
             toggleDefaultFlag(player, flag);
+            Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                () -> AdminGui.openDefaults(player));
+        }
+    }
+
+    private void handleAdminDefaultsGuest(Player player, InventoryClickEvent event) {
+        int slot = event.getRawSlot();
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+
+        if (slot == 18) {
+            Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                () -> AdminGui.openDefaults(player));
             return;
         }
 
-        // Guest flags: slots 28, 29, 30
-        if (slot >= 28 && slot <= 30) {
-            int gIdx = slot - 28;
+        if (slot >= 11 && slot <= 13) {
+            int gIdx = slot - 11;
             if (gIdx < Land.GUEST_FLAGS.length) {
-                toggleDefaultFlag(player, Land.GUEST_FLAGS[gIdx]);
+                String flag = Land.GUEST_FLAGS[gIdx];
+                toggleDefaultFlag(player, flag);
+                Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                    () -> AdminGui.openDefaultsGuest(player));
             }
         }
     }
@@ -699,7 +718,6 @@ public class ClaimGuiListener implements Listener {
             ? plugin.getLangManager().getRaw("gui-flag-on")
             : plugin.getLangManager().getRaw("gui-flag-off");
         player.sendMessage(plugin.getLangManager().component("admin-default-changed", "flag", flag, "value", status));
-        Bukkit.getScheduler().runTask(plugin, () -> AdminGui.openDefaults(player));
     }
 
     private void toggleLockedFlag(Player player, String flag) {

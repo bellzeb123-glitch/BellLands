@@ -313,7 +313,6 @@ public class AdminGui {
         Inventory inv = Bukkit.createInventory(null, 54,
             lang.colorize(lang.getRaw("admin-defaults-title")));
 
-        // Protection flags — same layout as flags page
         String[] allFlags = Land.ALL_FLAGS;
         for (int i = 0; i < allFlags.length; i++) {
             String flag = allFlags[i];
@@ -325,8 +324,20 @@ public class AdminGui {
                 ClaimGui.item(ClaimGui.FLAG_MATERIALS[i], flagName, status, lang.getRaw("gui-flag-lore")));
         }
 
-        // Guest flags label + items
-        inv.setItem(27, ClaimGui.item(Material.ARMOR_STAND, lang.getRaw("gui-nav-guest")));
+        inv.setItem(40, ClaimGui.item(Material.ARMOR_STAND,
+            lang.getRaw("gui-nav-guest"), lang.getRaw("gui-nav-guest-lore")));
+        inv.setItem(45, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
+
+        admin.openInventory(inv);
+        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_DEFAULTS);
+    }
+
+    public static void openDefaultsGuest(Player admin) {
+        LangManager lang = BellLands.getInstance().getLangManager();
+        var config = BellLands.getInstance().getConfig();
+
+        Inventory inv = Bukkit.createInventory(null, 27,
+            lang.colorize(lang.getRaw("admin-defaults-guest-title")));
 
         String[] guestFlags = Land.GUEST_FLAGS;
         for (int i = 0; i < guestFlags.length; i++) {
@@ -335,13 +346,13 @@ public class AdminGui {
             String flagName = lang.getRaw("gui-flag-" + flag);
             String status = value ? lang.getRaw("gui-flag-on") : lang.getRaw("gui-flag-off");
 
-            inv.setItem(28 + i, ClaimGui.item(ClaimGui.GUEST_MATERIALS[i], flagName, status, lang.getRaw("gui-flag-lore")));
+            inv.setItem(11 + i, ClaimGui.item(ClaimGui.GUEST_MATERIALS[i], flagName, status, lang.getRaw("gui-flag-lore")));
         }
 
-        inv.setItem(45, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
+        inv.setItem(18, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
 
         admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_DEFAULTS);
+        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_DEFAULTS_GUEST);
     }
 
     // ── Zone grouping ───────────────────────────────────────

@@ -9,12 +9,17 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.config.LangManager;
+import pl.bell.lands.gui.AdminGui;
 import pl.bell.lands.gui.ClaimGui;
 import pl.bell.lands.model.Land;
 import pl.bell.lands.manager.LandManager;
+import pl.bell.lands.manager.WarpManager;
 import pl.bell.lands.integration.Pl3xMapHook;
 
+import org.bukkit.Location;
+
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ClaimCommand implements CommandExecutor {
@@ -35,7 +40,7 @@ public class ClaimCommand implements CommandExecutor {
             // If standing on own land, open GUI; otherwise claim
             Optional<Land> existing = landManager.getLandAt(chunk);
             if (existing.isPresent() && existing.get().getOwner().equals(player.getUniqueId())) {
-                ClaimGui.openMain(player, existing.get());
+                ClaimGui.openMainMenu(player, existing.get());
                 return true;
             }
 
@@ -67,17 +72,42 @@ public class ClaimCommand implements CommandExecutor {
 
         String sub = args[0].toLowerCase();
         switch (sub) {
-            case "unclaim" -> handleUnclaim(player, chunk, landManager, lang);
+            case "unclaim" -> {
+                if (args.length >= 2 && args[1].equalsIgnoreCase("auto")) {
+                    handleAutoUnclaim(player, landManager, lang);
+                } else {
+                    handleUnclaim(player, chunk, landManager, lang);
+                }
+            }
+            case "auto" -> handleAutoClaim(player, landManager, lang);
             case "trust" -> handleTrust(player, args, chunk, landManager, lang);
             case "untrust" -> handleUntrust(player, args, chunk, landManager, lang);
             case "flag" -> handleFlag(player, args, chunk, landManager, lang);
             case "flags" -> handleFlagsList(player, chunk, landManager, lang);
             case "info" -> handleInfo(player, chunk, landManager, lang);
             case "menu" -> handleGui(player, chunk, landManager, lang);
+            case "setwarp" -> handleSetWarp(player, args, chunk, landManager, lang);
+            case "delwarp" -> handleDelWarp(player, args, lang);
+            case "warp" -> handleWarp(player, args, lang);
+            case "warps" -> handleWarpsList(player, lang);
+            case "outline" -> handleOutline(player, landManager, lang);
+            case "fill" -> handleFill(player, chunk, landManager, lang);
+            case "particles" -> handleParticles(player, lang);
+            case "admin" -> handleAdmin(player, lang);
             case "help" -> sendHelp(player, lang);
             default -> sendHelp(player, lang);
         }
         return true;
+    }
+
+    private void handleAutoClaim(Player player, LandManager landManager, LangManager lang) {
+        boolean enabled = landManager.toggleAutoClaim(player.getUniqueId());
+        player.sendMessage(lang.component(enabled ? "auto-claim-on" : "auto-claim-off"));
+    }
+
+    private void handleAutoUnclaim(Player player, LandManager landManager, LangManager lang) {
+        boolean enabled = landManager.toggleAutoUnclaim(player.getUniqueId());
+        player.sendMessage(lang.component(enabled ? "auto-unclaim-on" : "auto-unclaim-off"));
     }
 
     private void handleGui(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
@@ -91,7 +121,7 @@ public class ClaimCommand implements CommandExecutor {
             player.sendMessage(lang.component("unclaim-not-owner"));
             return;
         }
-        ClaimGui.openMain(player, land);
+        ClaimGui.openMainMenu(player, land);
     }
 
     private void handleUnclaim(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
@@ -272,6 +302,136 @@ public class ClaimCommand implements CommandExecutor {
         player.sendMessage(lang.componentRaw("info-footer"));
     }
 
+    private void handleSetWarp(Player player, String[] args, Chunk chunk, LandManager landManager, LangManager lang) {
+        if (args.length < 2) {
+            player.sendMessage(lang.component("warp-setwarp-usage"));
+            return;
+        }
+        Optional<Land> opt = landManager.getLandAt(chunk);
+        if (opt.isEmpty() || !opt.get().getOwner().equals(player.getUniqueId())) {
+            player.sendMessage(lang.component("warp-must-own"));
+            return;
+        }
+
+        WarpManager warpManager = BellLands.getInstance().getWarpManager();
+        int current = warpManager.getWarpCount(player.getUniqueId());
+        int max = warpManager.getMaxWarps(player);
+
+        String name = args[1].toLowerCase();
+        boolean isUpdate = warpManager.getWarp(player.getUniqueId(), name) != null;
+
+        if (!isUpdate && current >= max) {
+            player.sendMessage(lang.component("warp-limit-reached", "current", current, "max", max));
+            return;
+        }
+
+        warpManager.setWarp(player.getUniqueId(), name, player.getLocation());
+        player.sendMessage(lang.component("warp-set-success", "name", name));
+    }
+
+    private void handleDelWarp(Player player, String[] args, LangManager lang) {
+        if (args.length < 2) {
+            player.sendMessage(lang.component("warp-delwarp-usage"));
+            return;
+        }
+        WarpManager warpManager = BellLands.getInstance().getWarpManager();
+        String name = args[1].toLowerCase();
+        if (warpManager.deleteWarp(player.getUniqueId(), name)) {
+            player.sendMessage(lang.component("warp-deleted", "name", name));
+        } else {
+            player.sendMessage(lang.component("warp-not-found", "name", name));
+        }
+    }
+
+    private void handleWarp(Player player, String[] args, LangManager lang) {
+        if (args.length < 2) {
+            player.sendMessage(lang.component("warp-usage"));
+            return;
+        }
+        WarpManager warpManager = BellLands.getInstance().getWarpManager();
+        String name = args[1].toLowerCase();
+        Location loc = warpManager.getWarp(player.getUniqueId(), name);
+        if (loc == null) {
+            player.sendMessage(lang.component("warp-not-found", "name", name));
+            return;
+        }
+        player.teleport(loc);
+        player.sendMessage(lang.component("warp-teleported", "name", name));
+    }
+
+    private void handleWarpsList(Player player, LangManager lang) {
+        WarpManager warpManager = BellLands.getInstance().getWarpManager();
+        Set<String> names = warpManager.getWarpNames(player.getUniqueId());
+        if (names.isEmpty()) {
+            player.sendMessage(lang.component("warp-none"));
+            return;
+        }
+        int max = warpManager.getMaxWarps(player);
+        player.sendMessage(lang.componentRaw("warp-list-header", "count", names.size(), "max", max));
+        for (String name : names) {
+            player.sendMessage(lang.componentRaw("warp-list-entry", "name", name));
+        }
+    }
+
+    private void handleParticles(Player player, LangManager lang) {
+        boolean enabled = pl.bell.lands.listener.LandListener.toggleParticles(player.getUniqueId());
+        player.sendMessage(lang.component(enabled ? "particles-on" : "particles-off"));
+    }
+
+    private void handleAdmin(Player player, LangManager lang) {
+        if (!player.hasPermission("belllands.admin") && !player.isOp()) {
+            player.sendMessage(lang.component("no-permission"));
+            return;
+        }
+        AdminGui.openMain(player);
+    }
+
+    private void handleOutline(Player player, LandManager landManager, LangManager lang) {
+        boolean enabled = landManager.toggleOutline(player.getUniqueId());
+        player.sendMessage(lang.component(enabled ? "outline-on" : "outline-off"));
+    }
+
+    private void handleFill(Player player, Chunk chunk, LandManager landManager, LangManager lang) {
+        int[] c1 = landManager.getOutlineCorner1(player.getUniqueId());
+        int[] c2 = landManager.getOutlineCorner2(player.getUniqueId());
+        if (c1 == null || c2 == null) {
+            player.sendMessage(lang.component("outline-no-selection"));
+            return;
+        }
+
+        String worldName = player.getWorld().getName();
+        int needed = 0;
+        for (int x = c1[0]; x <= c2[0]; x++) {
+            for (int z = c1[1]; z <= c2[1]; z++) {
+                if (landManager.getLandAt(worldName, x, z).isEmpty()) needed++;
+            }
+        }
+
+        int current = landManager.getClaimCount(player.getUniqueId());
+        int max = landManager.getMaxClaims(player);
+        if (current + needed > max) {
+            player.sendMessage(lang.component("outline-not-enough",
+                "needed", needed, "available", max - current));
+            landManager.clearOutline(player.getUniqueId());
+            return;
+        }
+
+        int claimed = 0;
+        for (int x = c1[0]; x <= c2[0]; x++) {
+            for (int z = c1[1]; z <= c2[1]; z++) {
+                if (landManager.getLandAt(worldName, x, z).isEmpty()) {
+                    Land land = new Land(player.getUniqueId(), worldName, x, z);
+                    landManager.claimLand(land);
+                    claimed++;
+                }
+            }
+        }
+
+        Pl3xMapHook.drawAll();
+        landManager.clearOutline(player.getUniqueId());
+        player.sendMessage(lang.component("outline-filled", "count", claimed));
+    }
+
     private void sendHelp(Player player, LangManager lang) {
         player.sendMessage(lang.componentRaw("help-header"));
         player.sendMessage(lang.componentRaw("help-claim"));
@@ -281,7 +441,18 @@ public class ClaimCommand implements CommandExecutor {
         player.sendMessage(lang.componentRaw("help-flag"));
         player.sendMessage(lang.componentRaw("help-trust"));
         player.sendMessage(lang.componentRaw("help-untrust"));
+        player.sendMessage(lang.componentRaw("help-auto"));
+        player.sendMessage(lang.componentRaw("help-unclaim-auto"));
         player.sendMessage(lang.componentRaw("help-menu"));
+        player.sendMessage(lang.componentRaw("help-setwarp"));
+        player.sendMessage(lang.componentRaw("help-warp"));
+        player.sendMessage(lang.componentRaw("help-delwarp"));
+        player.sendMessage(lang.componentRaw("help-warps"));
+        player.sendMessage(lang.componentRaw("help-particles"));
+        if (player.hasPermission("belllands.admin") || player.isOp())
+            player.sendMessage(lang.componentRaw("help-admin"));
+        player.sendMessage(lang.componentRaw("help-outline"));
+        player.sendMessage(lang.componentRaw("help-fill"));
         player.sendMessage(lang.componentRaw("help-help"));
         player.sendMessage(lang.componentRaw("help-footer"));
     }

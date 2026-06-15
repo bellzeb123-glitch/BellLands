@@ -9,10 +9,16 @@ import pl.bell.lands.model.Land;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LandManager {
 
     private final Map<String, Land> claimedLands = new HashMap<>();
+    private final Set<UUID> autoClaimPlayers = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> autoUnclaimPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, int[]> outlineCorner1 = new HashMap<>();
+    private final Map<UUID, int[]> outlineCorner2 = new HashMap<>();
+    private final Set<UUID> outlinePlayers = ConcurrentHashMap.newKeySet();
     private File file;
     private FileConfiguration config;
 
@@ -74,6 +80,87 @@ public class LandManager {
             }
         }
         return configMax;
+    }
+
+    public boolean toggleAutoClaim(UUID player) {
+        if (autoClaimPlayers.contains(player)) {
+            autoClaimPlayers.remove(player);
+            return false;
+        }
+        autoUnclaimPlayers.remove(player);
+        autoClaimPlayers.add(player);
+        return true;
+    }
+
+    public boolean toggleAutoUnclaim(UUID player) {
+        if (autoUnclaimPlayers.contains(player)) {
+            autoUnclaimPlayers.remove(player);
+            return false;
+        }
+        autoClaimPlayers.remove(player);
+        autoUnclaimPlayers.add(player);
+        return true;
+    }
+
+    public boolean isAutoClaiming(UUID player) { return autoClaimPlayers.contains(player); }
+    public boolean isAutoUnclaiming(UUID player) { return autoUnclaimPlayers.contains(player); }
+
+    public void removeAutoModes(UUID player) {
+        autoClaimPlayers.remove(player);
+        autoUnclaimPlayers.remove(player);
+        outlinePlayers.remove(player);
+    }
+
+    // ── Outline mode ────────────────────────────────────────
+    public boolean toggleOutline(UUID player) {
+        if (outlinePlayers.contains(player)) {
+            outlinePlayers.remove(player);
+            outlineCorner1.remove(player);
+            outlineCorner2.remove(player);
+            return false;
+        }
+        autoClaimPlayers.remove(player);
+        autoUnclaimPlayers.remove(player);
+        outlineCorner1.remove(player);
+        outlineCorner2.remove(player);
+        outlinePlayers.add(player);
+        return true;
+    }
+
+    public boolean isOutlining(UUID player) { return outlinePlayers.contains(player); }
+
+    public void updateOutline(UUID player, int chunkX, int chunkZ) {
+        if (!outlineCorner1.containsKey(player)) {
+            outlineCorner1.put(player, new int[]{chunkX, chunkZ});
+            outlineCorner2.put(player, new int[]{chunkX, chunkZ});
+        } else {
+            int[] c1 = outlineCorner1.get(player);
+            int[] c2 = outlineCorner2.get(player);
+            c1[0] = Math.min(c1[0], chunkX);
+            c1[1] = Math.min(c1[1], chunkZ);
+            c2[0] = Math.max(c2[0], chunkX);
+            c2[1] = Math.max(c2[1], chunkZ);
+        }
+    }
+
+    public int[] getOutlineCorner1(UUID player) { return outlineCorner1.get(player); }
+    public int[] getOutlineCorner2(UUID player) { return outlineCorner2.get(player); }
+
+    public int getOutlineChunkCount(UUID player) {
+        int[] c1 = outlineCorner1.get(player);
+        int[] c2 = outlineCorner2.get(player);
+        if (c1 == null || c2 == null) return 0;
+        return (c2[0] - c1[0] + 1) * (c2[1] - c1[1] + 1);
+    }
+
+    public void clearOutline(UUID player) {
+        outlinePlayers.remove(player);
+        outlineCorner1.remove(player);
+        outlineCorner2.remove(player);
+    }
+
+    public Optional<Land> getLandAt(String world, int chunkX, int chunkZ) {
+        return Optional.ofNullable(claimedLands.get(generateKey(world, chunkX, chunkZ)));
     }
 
     private String generateKey(String world, int x, int z) {

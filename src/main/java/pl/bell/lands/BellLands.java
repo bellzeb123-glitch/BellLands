@@ -11,6 +11,7 @@ import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.listener.LandListener;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.TPAManager;
+import pl.bell.lands.manager.WarpManager;
 
 public final class BellLands extends JavaPlugin {
 
@@ -18,6 +19,7 @@ public final class BellLands extends JavaPlugin {
     private TPAManager tpaManager;
     private LandManager landManager;
     private LangManager langManager;
+    private WarpManager warpManager;
 
     @Override
     public void onEnable() {
@@ -30,6 +32,8 @@ public final class BellLands extends JavaPlugin {
         this.tpaManager = new TPAManager(this);
         this.landManager = new LandManager();
         this.landManager.init();
+        this.warpManager = new WarpManager();
+        this.warpManager.init();
 
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
         ClaimCommand claimCommand = new ClaimCommand();
@@ -51,6 +55,8 @@ public final class BellLands extends JavaPlugin {
         LandListener landListener = new LandListener();
         getServer().getPluginManager().registerEvents(landListener, this);
         landListener.startActionBarTask();
+        landListener.startParticleBorderTask();
+        landListener.startOutlineParticleTask();
         getServer().getPluginManager().registerEvents(new ClaimGuiListener(), this);
 
         Pl3xMapHook.init();
@@ -79,6 +85,7 @@ public final class BellLands extends JavaPlugin {
     public TPAManager getTpaManager() { return tpaManager; }
     public LandManager getLandManager() { return landManager; }
     public LangManager getLangManager() { return langManager; }
+    public WarpManager getWarpManager() { return warpManager; }
 
     private void printBanner() {
         var c = org.bukkit.Bukkit.getConsoleSender();

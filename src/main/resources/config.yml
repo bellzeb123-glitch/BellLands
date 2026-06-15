@@ -4,6 +4,7 @@ language: pl
 
 claims:
   max-per-player: 5
+  max-warps: 3
   default-flags:
     pvp: false
     explosions: false
@@ -12,10 +13,21 @@ claims:
     mob-spawning: true
     mob-damage: true
     lava-flow: false
+    lava-damage: false
     water-flow: false
     piston: false
     leaf-decay: true
     use: false
+    doors: false
+    guest-doors: false
+    guest-use: false
+    guest-chest: false
+
+  # Locked flags - players cannot change these (admin only)
+  # Example: locked-flags: [fire-spread, explosions]
+  locked-flags: []
+
+  particle-borders: true
 
 tpa:
   timeout-seconds: 60

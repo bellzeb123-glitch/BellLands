@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.model.Land;
 import pl.bell.lands.manager.LandManager;
+import pl.bell.lands.manager.WarpManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,7 +19,8 @@ import java.util.stream.Collectors;
 public class ClaimTabCompleter implements TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
-        "unclaim", "trust", "untrust", "flag", "flags", "info", "menu", "help"
+        "unclaim", "auto", "trust", "untrust", "flag", "flags", "info", "menu",
+        "setwarp", "warp", "delwarp", "warps", "outline", "fill", "particles", "admin", "help"
     );
 
     private static final List<String> BOOLEAN_VALUES = List.of("true", "false");
@@ -35,6 +37,9 @@ public class ClaimTabCompleter implements TabCompleter {
 
         if (args.length == 2) {
             switch (sub) {
+                case "unclaim" -> {
+                    return filterStartsWith(List.of("auto"), args[1]);
+                }
                 case "trust" -> {
                     return filterStartsWith(getOnlinePlayerNames(player), args[1]);
                 }
@@ -43,6 +48,10 @@ public class ClaimTabCompleter implements TabCompleter {
                 }
                 case "flag" -> {
                     return filterStartsWith(Arrays.asList(Land.ALL_FLAGS), args[1]);
+                }
+                case "warp", "delwarp" -> {
+                    WarpManager wm = BellLands.getInstance().getWarpManager();
+                    return filterStartsWith(new ArrayList<>(wm.getWarpNames(player.getUniqueId())), args[1]);
                 }
             }
         }

@@ -15,16 +15,133 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.World;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.config.LangManager;
+import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.model.Land;
 import pl.bell.lands.manager.LandManager;
 
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LandListener implements Listener {
+
+    private static final Set<UUID> particlesDisabled = ConcurrentHashMap.newKeySet();
+
+    public static boolean toggleParticles(UUID player) {
+        if (particlesDisabled.contains(player)) {
+            particlesDisabled.remove(player);
+            return true; // now enabled
+        }
+        particlesDisabled.add(player);
+        return false; // now disabled
+    }
+
+    public void startParticleBorderTask() {
+        Bukkit.getScheduler().runTaskTimer(BellLands.getInstance(), () -> {
+            LandManager landManager = BellLands.getInstance().getLandManager();
+
+            if (!BellLands.getInstance().getConfig().getBoolean("claims.particle-borders", true)) return;
+
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (particlesDisabled.contains(player.getUniqueId())) continue;
+                Chunk chunk = player.getLocation().getChunk();
+                Optional<Land> opt = landManager.getLandAt(chunk);
+                if (opt.isEmpty()) continue;
+
+                Land land = opt.get();
+                int bx = land.getChunkX() * 16;
+                int bz = land.getChunkZ() * 16;
+                World world = player.getWorld();
+                double py = player.getLocation().getY();
+
+                for (int i = 0; i <= 16; i += 2) {
+                    // North
+                    if (!isSameOwnerAt(landManager, land, 0, -1)) {
+                        spawnBorderParticle(world, bx + i, py, bz, player);
+                    }
+                    // South
+                    if (!isSameOwnerAt(landManager, land, 0, 1)) {
+                        spawnBorderParticle(world, bx + i, py, bz + 16, player);
+                    }
+                    // West
+                    if (!isSameOwnerAt(landManager, land, -1, 0)) {
+                        spawnBorderParticle(world, bx, py, bz + i, player);
+                    }
+                    // East
+                    if (!isSameOwnerAt(landManager, land, 1, 0)) {
+                        spawnBorderParticle(world, bx + 16, py, bz + i, player);
+                    }
+                }
+            }
+        }, 20L, 20L);
+    }
+
+    private boolean isSameOwnerAt(LandManager lm, Land land, int dx, int dz) {
+        Optional<Land> neighbor = lm.getLandAt(land.getWorldName(),
+            land.getChunkX() + dx, land.getChunkZ() + dz);
+        return neighbor.isPresent() && neighbor.get().getOwner().equals(land.getOwner());
+    }
+
+    private void spawnBorderParticle(World world, double x, double y, double z, Player player) {
+        for (double dy = -1; dy <= 2; dy += 1.5) {
+            player.spawnParticle(Particle.DUST,
+                new Location(world, x, y + dy, z),
+                1, 0, 0, 0, 0,
+                new Particle.DustOptions(org.bukkit.Color.fromRGB(155, 89, 182), 0.8f));
+        }
+    }
+
+    public void startOutlineParticleTask() {
+        Bukkit.getScheduler().runTaskTimer(BellLands.getInstance(), () -> {
+            LandManager landManager = BellLands.getInstance().getLandManager();
+
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (!landManager.isOutlining(player.getUniqueId())) continue;
+
+                int[] c1 = landManager.getOutlineCorner1(player.getUniqueId());
+                int[] c2 = landManager.getOutlineCorner2(player.getUniqueId());
+                if (c1 == null || c2 == null) continue;
+
+                World world = player.getWorld();
+                double py = player.getLocation().getY();
+
+                int minBX = c1[0] * 16;
+                int minBZ = c1[1] * 16;
+                int maxBX = (c2[0] + 1) * 16;
+                int maxBZ = (c2[1] + 1) * 16;
+
+                Particle.DustOptions gold = new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 170, 0), 1.2f);
+
+                // Draw 4 edges of the rectangle
+                for (int x = minBX; x <= maxBX; x += 2) {
+                    spawnOutlineParticle(world, x, py, minBZ, player, gold);
+                    spawnOutlineParticle(world, x, py, maxBZ, player, gold);
+                }
+                for (int z = minBZ; z <= maxBZ; z += 2) {
+                    spawnOutlineParticle(world, minBX, py, z, player, gold);
+                    spawnOutlineParticle(world, maxBX, py, z, player, gold);
+                }
+            }
+        }, 10L, 10L);
+    }
+
+    private void spawnOutlineParticle(World world, double x, double y, double z, Player player, Particle.DustOptions dust) {
+        for (double dy = 0; dy <= 2; dy += 1.0) {
+            player.spawnParticle(Particle.DUST,
+                new Location(world, x, y + dy, z),
+                1, 0, 0, 0, 0, dust);
+        }
+    }
 
     public void startActionBarTask() {
         Bukkit.getScheduler().runTaskTimer(BellLands.getInstance(), () -> {
@@ -47,6 +164,59 @@ public class LandListener implements Listener {
                 }
             }
         }, 30L, 30L);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (event.getFrom().getChunk().equals(event.getTo().getChunk())) return;
+
+        Player player = event.getPlayer();
+        LandManager landManager = BellLands.getInstance().getLandManager();
+        LangManager lang = BellLands.getInstance().getLangManager();
+        Chunk chunk = event.getTo().getChunk();
+
+        if (landManager.isAutoClaiming(player.getUniqueId())) {
+            if (!landManager.isClaimed(chunk)) {
+                int current = landManager.getClaimCount(player.getUniqueId());
+                int max = landManager.getMaxClaims(player);
+                if (current >= max) {
+                    player.sendMessage(lang.component("claim-limit-reached", "current", current, "max", max));
+                    landManager.removeAutoModes(player.getUniqueId());
+                    player.sendMessage(lang.component("auto-claim-off"));
+                    return;
+                }
+                Land land = new Land(player.getUniqueId(), chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
+                landManager.claimLand(land);
+                Pl3xMapHook.drawLand(land);
+                player.sendMessage(lang.component("claim-success", "x", chunk.getX(), "z", chunk.getZ()));
+            }
+        }
+
+        if (landManager.isOutlining(player.getUniqueId())) {
+            landManager.updateOutline(player.getUniqueId(), chunk.getX(), chunk.getZ());
+            int count = landManager.getOutlineChunkCount(player.getUniqueId());
+            int[] c1 = landManager.getOutlineCorner1(player.getUniqueId());
+            int[] c2 = landManager.getOutlineCorner2(player.getUniqueId());
+            player.sendActionBar(lang.componentRaw("outline-progress",
+                "count", count,
+                "x1", c1[0], "z1", c1[1],
+                "x2", c2[0], "z2", c2[1]));
+        }
+
+        if (landManager.isAutoUnclaiming(player.getUniqueId())) {
+            Optional<Land> opt = landManager.getLandAt(chunk);
+            if (opt.isPresent() && opt.get().getOwner().equals(player.getUniqueId())) {
+                Land land = opt.get();
+                landManager.unclaimLand(chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
+                Pl3xMapHook.removeLand(land);
+                player.sendMessage(lang.component("unclaim-success"));
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        BellLands.getInstance().getLandManager().removeAutoModes(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -74,6 +244,7 @@ public class LandListener implements Listener {
         Player player = event.getPlayer();
         Block block = event.getClickedBlock();
         if (block == null) return;
+        if (player.isOp()) return;
 
         Chunk chunk = block.getChunk();
         LandManager landManager = BellLands.getInstance().getLandManager();
@@ -82,13 +253,40 @@ public class LandListener implements Listener {
 
         Land land = opt.get();
         if (land.getOwner().equals(player.getUniqueId()) || land.isTrusted(player.getUniqueId())) return;
-        if (player.isOp()) return;
 
-        if (!land.getFlag("use") && isProtectedInteractiveBlock(block.getType())) {
+        Material mat = block.getType();
+        boolean isDoor = isDoorBlock(mat);
+        boolean isChest = isChestBlock(mat);
+        boolean isUse = isProtectedInteractiveBlock(mat);
+
+        // Guest permissions: allow if the guest flag is on
+        if (isDoor && land.getFlag("guest-doors")) return;
+        if (isChest && land.getFlag("guest-chest")) return;
+        if (isUse && !isDoor && !isChest && land.getFlag("guest-use")) return;
+
+        // Doors flag: blocks door use for everyone (even guests)
+        if (isDoor && !land.getFlag("doors")) {
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
+            event.setCancelled(true);
+            return;
+        }
+
+        if (!land.getFlag("use") && isUse) {
             player.sendMessage(BellLands.getInstance().getLangManager()
                 .component("protection-land-belongs"));
             event.setCancelled(true);
         }
+    }
+
+    private boolean isDoorBlock(Material material) {
+        String name = material.name();
+        return name.contains("DOOR") || name.contains("GATE") || name.contains("TRAPDOOR");
+    }
+
+    private boolean isChestBlock(Material material) {
+        String name = material.name();
+        return name.contains("CHEST") || name.contains("SHULKER_BOX") || material == Material.BARREL;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -134,6 +332,23 @@ public class LandListener implements Listener {
         Optional<Land> opt = landManager.getLandAt(chunk);
 
         if (opt.isPresent() && !opt.get().getFlag("mob-damage")) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onLavaDamage(EntityDamageEvent event) {
+        if (event.getCause() != EntityDamageEvent.DamageCause.LAVA
+            && event.getCause() != EntityDamageEvent.DamageCause.FIRE
+            && event.getCause() != EntityDamageEvent.DamageCause.FIRE_TICK) {
+            return;
+        }
+
+        Chunk chunk = event.getEntity().getLocation().getChunk();
+        LandManager landManager = BellLands.getInstance().getLandManager();
+        Optional<Land> opt = landManager.getLandAt(chunk);
+
+        if (opt.isPresent() && !opt.get().getFlag("lava-damage")) {
             event.setCancelled(true);
         }
     }

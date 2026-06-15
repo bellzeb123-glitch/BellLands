@@ -19,7 +19,11 @@ public class Land {
 
     public static final String[] ALL_FLAGS = {
         "pvp", "explosions", "explosion-damage", "fire-spread", "mob-spawning", "mob-damage",
-        "lava-flow", "water-flow", "piston", "leaf-decay", "use"
+        "lava-flow", "lava-damage", "water-flow", "piston", "leaf-decay", "use", "doors"
+    };
+
+    public static final String[] GUEST_FLAGS = {
+        "guest-doors", "guest-use", "guest-chest"
     };
 
     public Land(UUID owner, String worldName, int chunkX, int chunkZ) {
@@ -34,6 +38,10 @@ public class Land {
         for (String flag : ALL_FLAGS) {
             boolean def = config.getBoolean("claims.default-flags." + flag, getHardcodedDefault(flag));
             flags.put(flag, def);
+        }
+        for (String gf : GUEST_FLAGS) {
+            boolean def = config.getBoolean("claims.default-flags." + gf, false);
+            flags.put(gf, def);
         }
     }
 
@@ -59,6 +67,16 @@ public class Land {
 
     public static boolean isValidFlag(String flag) {
         for (String f : ALL_FLAGS) {
+            if (f.equalsIgnoreCase(flag)) return true;
+        }
+        for (String f : GUEST_FLAGS) {
+            if (f.equalsIgnoreCase(flag)) return true;
+        }
+        return false;
+    }
+
+    public static boolean isGuestFlag(String flag) {
+        for (String f : GUEST_FLAGS) {
             if (f.equalsIgnoreCase(flag)) return true;
         }
         return false;

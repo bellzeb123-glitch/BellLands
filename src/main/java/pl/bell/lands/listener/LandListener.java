@@ -15,6 +15,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.Bukkit;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.config.LangManager;
 import pl.bell.lands.model.Land;
@@ -24,6 +25,29 @@ import java.util.Iterator;
 import java.util.Optional;
 
 public class LandListener implements Listener {
+
+    public void startActionBarTask() {
+        Bukkit.getScheduler().runTaskTimer(BellLands.getInstance(), () -> {
+            LandManager landManager = BellLands.getInstance().getLandManager();
+            LangManager lang = BellLands.getInstance().getLangManager();
+
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                Chunk chunk = player.getLocation().getChunk();
+                Optional<Land> opt = landManager.getLandAt(chunk);
+
+                if (opt.isPresent()) {
+                    Land land = opt.get();
+                    if (land.getOwner().equals(player.getUniqueId())) {
+                        player.sendActionBar(lang.componentRaw("actionbar-own-land"));
+                    } else {
+                        String ownerName = Bukkit.getOfflinePlayer(land.getOwner()).getName();
+                        if (ownerName == null) ownerName = lang.getRaw("info-unknown-owner");
+                        player.sendActionBar(lang.componentRaw("actionbar-other-land", "owner", ownerName));
+                    }
+                }
+            }
+        }, 30L, 30L);
+    }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {

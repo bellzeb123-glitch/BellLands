@@ -105,6 +105,11 @@ tpa-denied: "&cOdrzucono prosbe."
 tpa-no-deny: "&cBrak prosb do odrzucenia."
 tpa-sender-offline: "&cGracz, ktory wyslal prosbe, jest juz offline."
 
+# ── ActionBar (wejście/wyjście) ───────────────────────────
+actionbar-own-land: "&b⛏ &fTwoja dzialka &8│ &5BellLands"
+actionbar-other-land: "&6⚠ &fDzialka gracza &d{owner} &8│ &5BellLands"
+actionbar-wilderness: "&7☁ &7Dzikie tereny"
+
 # ── Language ─────────────────────────────────────────────
 language-usage: "&cUzycie: &e/belllands language <en|pl>"
 language-invalid: "&cDostepne jezyki: &een&c, &epl"

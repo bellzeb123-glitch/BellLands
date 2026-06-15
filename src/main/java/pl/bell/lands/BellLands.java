@@ -48,7 +48,9 @@ public final class BellLands extends JavaPlugin {
             getCommand("belllands").setTabCompleter(bellLandsCommand);
         }
 
-        getServer().getPluginManager().registerEvents(new LandListener(), this);
+        LandListener landListener = new LandListener();
+        getServer().getPluginManager().registerEvents(landListener, this);
+        landListener.startActionBarTask();
         getServer().getPluginManager().registerEvents(new ClaimGuiListener(), this);
 
         Pl3xMapHook.init();

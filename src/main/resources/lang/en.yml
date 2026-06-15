@@ -105,6 +105,11 @@ tpa-denied: "&cRequest denied."
 tpa-no-deny: "&cNo requests to deny."
 tpa-sender-offline: "&cThe player who sent the request is offline."
 
+# ── ActionBar (enter/leave) ───────────────────────────────
+actionbar-own-land: "&b⛏ &fYour land &8│ &5BellLands"
+actionbar-other-land: "&6⚠ &fLand of &d{owner} &8│ &5BellLands"
+actionbar-wilderness: "&7☁ &7Wilderness"
+
 # ── Language ─────────────────────────────────────────────
 language-usage: "&cUsage: &e/belllands language <en|pl>"
 language-invalid: "&cAvailable languages: &een&c, &epl"

@@ -22,6 +22,32 @@ public class Pl3xMapHook {
     private static final int STROKE_COLOR = 0xCC7B39B6;
     private static final int STROKE_WEIGHT = 3;
 
+    /**
+     * Optional render delegate. When set (e.g. by BellLandsPro), this hook stops
+     * drawing claims itself and forwards every draw/remove call to the delegate,
+     * so a single addon can own the map rendering (colors, named claims, regions)
+     * while still receiving live claim/unclaim updates from the core plugin.
+     */
+    public interface RenderDelegate {
+        void drawAll();
+        void drawLand(Land land);
+        void removeLand(Land land);
+    }
+
+    private static RenderDelegate delegate = null;
+
+    public static void setDelegate(RenderDelegate d) {
+        delegate = d;
+        // Hand rendering over: clear any markers this hook already drew.
+        for (SimpleLayer layer : layersByWorld.values()) {
+            layer.clearMarkers();
+        }
+    }
+
+    public static boolean hasDelegate() {
+        return delegate != null;
+    }
+
     public static void init() {
         if (Bukkit.getPluginManager().getPlugin("Pl3xMap") == null) {
             BellLands.getInstance().getLogger().info("Pl3xMap nie jest zainstalowany — mapa claimow wylaczona.");
@@ -29,6 +55,11 @@ public class Pl3xMapHook {
         }
 
         Bukkit.getScheduler().runTaskLater(BellLands.getInstance(), () -> {
+            // An addon owns rendering — don't register our own layer or draw.
+            if (delegate != null) {
+                BellLands.getInstance().getLogger().info("Mapa claimow obslugiwana przez dodatek (BellLandsPro).");
+                return;
+            }
             try {
                 for (World world : Pl3xMap.api().getWorldRegistry()) {
                     registerWorld(world);
@@ -54,6 +85,8 @@ public class Pl3xMapHook {
     }
 
     public static void drawAll() {
+        if (delegate != null) { delegate.drawAll(); return; }
+
         for (SimpleLayer layer : layersByWorld.values()) {
             layer.clearMarkers();
         }
@@ -71,10 +104,12 @@ public class Pl3xMapHook {
     }
 
     public static void drawLand(Land land) {
+        if (delegate != null) { delegate.drawLand(land); return; }
         drawAll();
     }
 
     public static void removeLand(Land land) {
+        if (delegate != null) { delegate.removeLand(land); return; }
         drawAll();
     }
 

@@ -72,10 +72,22 @@ public final class BellLands extends JavaPlugin {
         }
     }
 
+    private static final java.util.List<Runnable> reloadHooks = new java.util.ArrayList<>();
+
+    /** Lets addons (e.g. BellLandsPro) reload their own config/lang when the core reloads. */
+    public static void addReloadHook(Runnable hook) {
+        reloadHooks.add(hook);
+    }
+
     public void reload() {
         reloadConfig();
         if (langManager != null) langManager.reload();
         if (tpaManager != null) tpaManager.reloadConfig();
+        for (Runnable hook : reloadHooks) {
+            try { hook.run(); } catch (Exception e) {
+                getLogger().warning("Reload hook failed: " + e.getMessage());
+            }
+        }
     }
 
     public static BellLands getInstance() {

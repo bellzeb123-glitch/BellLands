@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LandManager {
 
     private final Map<String, Land> claimedLands = new HashMap<>();
+    private final Map<UUID, Integer> claimCounts = new HashMap<>();
     private final Set<UUID> autoClaimPlayers = ConcurrentHashMap.newKeySet();
     private final Set<UUID> autoUnclaimPlayers = ConcurrentHashMap.newKeySet();
     private final Map<UUID, int[]> outlineCorner1 = new HashMap<>();
@@ -42,7 +43,9 @@ public class LandManager {
 
     public void claimLand(Land land) {
         String key = generateKey(land.getWorldName(), land.getChunkX(), land.getChunkZ());
-        claimedLands.put(key, land);
+        Land previous = claimedLands.put(key, land);
+        if (previous != null) claimCounts.merge(previous.getOwner(), -1, Integer::sum);
+        claimCounts.merge(land.getOwner(), 1, Integer::sum);
         saveSingleLand(key, land);
     }
 
@@ -51,9 +54,51 @@ public class LandManager {
         saveSingleLand(key, land);
     }
 
+    /**
+     * Applies a protection flag value to every claim (used when the global default
+     * flag template changes). Writes once and refreshes the map. Addons that need to
+     * exclude certain claims (e.g. named claims) should register a DefaultFlagPropagator.
+     */
+    public void applyFlagToAllClaims(String flag, boolean value) {
+        for (Land land : claimedLands.values()) {
+            land.setFlag(flag, value);
+        }
+        saveAll();
+        pl.bell.lands.integration.Pl3xMapHook.drawAll();
+    }
+
+    /**
+     * Spreads a guest flag across the owner's connected (4-neighbour) claim group,
+     * starting from the given chunk. Standalone fallback when no addon propagator is set.
+     */
+    public void applyGuestFlagToGroup(UUID owner, String world, int startX, int startZ,
+                                      String flag, boolean value) {
+        Set<Long> visited = new HashSet<>();
+        Deque<int[]> queue = new ArrayDeque<>();
+        queue.add(new int[]{startX, startZ});
+        visited.add(((long) startX << 32) | (startZ & 0xFFFFFFFFL));
+
+        while (!queue.isEmpty()) {
+            int[] pos = queue.poll();
+            Optional<Land> opt = getLandAt(world, pos[0], pos[1]);
+            if (opt.isEmpty() || !opt.get().getOwner().equals(owner)) continue;
+
+            opt.get().setFlag(flag, value);
+            saveLand(opt.get());
+
+            int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1}};
+            for (int[] d : dirs) {
+                int nx = pos[0] + d[0], nz = pos[1] + d[1];
+                long key = ((long) nx << 32) | (nz & 0xFFFFFFFFL);
+                if (visited.add(key)) queue.add(new int[]{nx, nz});
+            }
+        }
+    }
+
     public void unclaimLand(String world, int x, int z) {
         String key = generateKey(world, x, z);
-        claimedLands.remove(key);
+        Land removed = claimedLands.remove(key);
+        if (removed != null) claimCounts.merge(removed.getOwner(), -1, Integer::sum);
         config.set("claims." + key, null);
         saveFile();
     }
@@ -68,11 +113,7 @@ public class LandManager {
     }
 
     public int getClaimCount(UUID owner) {
-        int count = 0;
-        for (Land land : claimedLands.values()) {
-            if (land.getOwner().equals(owner)) count++;
-        }
-        return count;
+        return claimCounts.getOrDefault(owner, 0);
     }
 
     public int getMaxClaims(org.bukkit.entity.Player player) {
@@ -241,6 +282,7 @@ public class LandManager {
         if (!file.exists()) return;
 
         claimedLands.clear();
+        claimCounts.clear();
         var section = config.getConfigurationSection("claims");
         if (section == null) return;
 
@@ -271,6 +313,7 @@ public class LandManager {
             }
 
             claimedLands.put(key, land);
+            claimCounts.merge(owner, 1, Integer::sum);
         }
     }
 

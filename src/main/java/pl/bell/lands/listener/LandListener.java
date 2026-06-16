@@ -92,12 +92,16 @@ public class LandListener implements Listener {
         return neighbor.isPresent() && neighbor.get().getOwner().equals(land.getOwner());
     }
 
+    private static final Particle.DustOptions BORDER_DUST =
+        new Particle.DustOptions(org.bukkit.Color.fromRGB(155, 89, 182), 0.8f);
+    private static final Particle.DustOptions OUTLINE_DUST =
+        new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 170, 0), 1.2f);
+
     private void spawnBorderParticle(World world, double x, double y, double z, Player player) {
+        Location loc = new Location(world, x, y, z);
         for (double dy = -1; dy <= 2; dy += 1.5) {
-            player.spawnParticle(Particle.DUST,
-                new Location(world, x, y + dy, z),
-                1, 0, 0, 0, 0,
-                new Particle.DustOptions(org.bukkit.Color.fromRGB(155, 89, 182), 0.8f));
+            loc.setY(y + dy);
+            player.spawnParticle(Particle.DUST, loc, 1, 0, 0, 0, 0, BORDER_DUST);
         }
     }
 
@@ -120,26 +124,24 @@ public class LandListener implements Listener {
                 int maxBX = (c2[0] + 1) * 16;
                 int maxBZ = (c2[1] + 1) * 16;
 
-                Particle.DustOptions gold = new Particle.DustOptions(org.bukkit.Color.fromRGB(255, 170, 0), 1.2f);
-
                 // Draw 4 edges of the rectangle
                 for (int x = minBX; x <= maxBX; x += 2) {
-                    spawnOutlineParticle(world, x, py, minBZ, player, gold);
-                    spawnOutlineParticle(world, x, py, maxBZ, player, gold);
+                    spawnOutlineParticle(world, x, py, minBZ, player, OUTLINE_DUST);
+                    spawnOutlineParticle(world, x, py, maxBZ, player, OUTLINE_DUST);
                 }
                 for (int z = minBZ; z <= maxBZ; z += 2) {
-                    spawnOutlineParticle(world, minBX, py, z, player, gold);
-                    spawnOutlineParticle(world, maxBX, py, z, player, gold);
+                    spawnOutlineParticle(world, minBX, py, z, player, OUTLINE_DUST);
+                    spawnOutlineParticle(world, maxBX, py, z, player, OUTLINE_DUST);
                 }
             }
         }, 10L, 10L);
     }
 
     private void spawnOutlineParticle(World world, double x, double y, double z, Player player, Particle.DustOptions dust) {
+        Location loc = new Location(world, x, y, z);
         for (double dy = 0; dy <= 2; dy += 1.0) {
-            player.spawnParticle(Particle.DUST,
-                new Location(world, x, y + dy, z),
-                1, 0, 0, 0, 0, dust);
+            loc.setY(y + dy);
+            player.spawnParticle(Particle.DUST, loc, 1, 0, 0, 0, 0, dust);
         }
     }
 
@@ -420,14 +422,26 @@ public class LandListener implements Listener {
         Chunk toChunk = toBlock.getChunk();
 
         LandManager landManager = BellLands.getInstance().getLandManager();
-        Optional<Land> opt = landManager.getLandAt(toChunk);
-        if (opt.isEmpty()) return;
-
-        Land toLand = opt.get();
         Material fromType = fromBlock.getType();
 
         boolean isLava = fromType == Material.LAVA;
         boolean isWater = fromType == Material.WATER;
+
+        // Block outward flow from a protected claim (source check) so fluid placed
+        // at the edge of a claim cannot leak into the unclaimed direction.
+        if (isLava || isWater) {
+            Optional<Land> fromOpt = landManager.getLandAt(fromBlock.getChunk());
+            if (fromOpt.isPresent()) {
+                Land fromLand = fromOpt.get();
+                if (isLava && !fromLand.getFlag("lava-flow")) { event.setCancelled(true); return; }
+                if (isWater && !fromLand.getFlag("water-flow")) { event.setCancelled(true); return; }
+            }
+        }
+
+        Optional<Land> opt = landManager.getLandAt(toChunk);
+        if (opt.isEmpty()) return;
+
+        Land toLand = opt.get();
 
         if (isLava && !toLand.getFlag("lava-flow")) {
             event.setCancelled(true);

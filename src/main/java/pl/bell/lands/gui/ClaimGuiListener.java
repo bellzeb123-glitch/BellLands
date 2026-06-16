@@ -32,6 +32,32 @@ public class ClaimGuiListener implements Listener {
         openGuis.put(playerId, type);
     }
 
+    // ── Addon hooks (used by BellLandsPro) ──
+
+    /** Lets an addon intercept per-claim protection-flag toggles (e.g. when flags are managed globally). */
+    public interface ProtectionFlagGate {
+        /** @return true if the addon handled/blocked the toggle and the core should NOT apply it. */
+        boolean intercept(Player player, Land land, String flag);
+    }
+
+    /** Lets an addon decide how a changed global default protection flag propagates to existing claims. */
+    public interface DefaultFlagPropagator {
+        void propagate(String flag, boolean value);
+    }
+
+    /** Lets an addon spread a guest-flag change across the owner's connected claim group. */
+    public interface GuestFlagPropagator {
+        void propagate(java.util.UUID owner, String world, int chunkX, int chunkZ, String flag, boolean value);
+    }
+
+    private static ProtectionFlagGate protectionGate = null;
+    private static DefaultFlagPropagator defaultFlagPropagator = null;
+    private static GuestFlagPropagator guestFlagPropagator = null;
+
+    public static void setProtectionGate(ProtectionFlagGate gate) { protectionGate = gate; }
+    public static void setDefaultFlagPropagator(DefaultFlagPropagator p) { defaultFlagPropagator = p; }
+    public static void setGuestFlagPropagator(GuestFlagPropagator p) { guestFlagPropagator = p; }
+
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
@@ -128,6 +154,12 @@ public class ClaimGuiListener implements Listener {
         if (flagIndex < 0 || flagIndex >= Land.ALL_FLAGS.length) return;
 
         String flag = Land.ALL_FLAGS[flagIndex];
+
+        // An addon (BellLandsPro) may manage protection flags globally / per named claim.
+        if (protectionGate != null && protectionGate.intercept(player, land, flag)) {
+            return;
+        }
+
         if (ClaimGui.isFlagLocked(flag) && !player.isOp()) {
             player.sendMessage(BellLands.getInstance().getLangManager()
                 .component("flag-locked-msg"));
@@ -168,8 +200,19 @@ public class ClaimGuiListener implements Listener {
                         .component("flag-locked-msg"));
                     return;
                 }
-                land.setFlag(flag, !land.getFlag(flag));
+                boolean newValue = !land.getFlag(flag);
+                land.setFlag(flag, newValue);
                 landManager.saveLand(land);
+
+                // Spread the guest flag across the owner's connected claim group.
+                if (guestFlagPropagator != null) {
+                    guestFlagPropagator.propagate(land.getOwner(), land.getWorldName(),
+                        land.getChunkX(), land.getChunkZ(), flag, newValue);
+                } else {
+                    landManager.applyGuestFlagToGroup(land.getOwner(), land.getWorldName(),
+                        land.getChunkX(), land.getChunkZ(), flag, newValue);
+                }
+
                 Bukkit.getScheduler().runTask(BellLands.getInstance(),
                     () -> ClaimGui.openGuestFlags(player, land));
             }
@@ -712,12 +755,23 @@ public class ClaimGuiListener implements Listener {
         BellLands plugin = BellLands.getInstance();
         String path = "claims.default-flags." + flag;
         boolean current = plugin.getConfig().getBoolean(path, false);
-        plugin.getConfig().set(path, !current);
+        boolean newValue = !current;
+        plugin.getConfig().set(path, newValue);
         plugin.saveConfig();
-        String status = !current
+        String status = newValue
             ? plugin.getLangManager().getRaw("gui-flag-on")
             : plugin.getLangManager().getRaw("gui-flag-off");
         player.sendMessage(plugin.getLangManager().component("admin-default-changed", "flag", flag, "value", status));
+
+        // Protection flags act as a global template — propagate the change to existing claims.
+        // Guest flags stay per-claim, so they are not propagated.
+        if (!Land.isGuestFlag(flag)) {
+            if (defaultFlagPropagator != null) {
+                defaultFlagPropagator.propagate(flag, newValue);
+            } else {
+                plugin.getLandManager().applyFlagToAllClaims(flag, newValue);
+            }
+        }
     }
 
     private void toggleLockedFlag(Player player, String flag) {

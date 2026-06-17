@@ -5,11 +5,17 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.model.Land;
+import pl.bell.lands.storage.Database;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public class LandManager {
 
@@ -20,8 +26,7 @@ public class LandManager {
     private final Map<UUID, int[]> outlineCorner1 = new HashMap<>();
     private final Map<UUID, int[]> outlineCorner2 = new HashMap<>();
     private final Set<UUID> outlinePlayers = ConcurrentHashMap.newKeySet();
-    private File file;
-    private FileConfiguration config;
+    private Database db;
     private File limitsFile;
     private FileConfiguration limitsConfig;
 
@@ -30,11 +35,24 @@ public class LandManager {
         if (!folder.exists()) {
             folder.mkdirs();
         }
-        this.file = new File(folder, "lands.yml");
-        this.config = YamlConfiguration.loadConfiguration(file);
+        this.db = new Database();
+        try {
+            db.init(new File(folder, "data.db"));
+        } catch (Exception e) {
+            BellLands.getInstance().getLogger().log(Level.SEVERE, "Failed to open database", e);
+            throw new IllegalStateException("BellLands database init failed", e);
+        }
         this.limitsFile = new File(folder, "claim-limits.yml");
         this.limitsConfig = YamlConfiguration.loadConfiguration(limitsFile);
         loadAll();
+    }
+
+    public Database getDatabase() {
+        return db;
+    }
+
+    public void shutdown() {
+        if (db != null) db.shutdown();
     }
 
     public Collection<Land> getAllLands() {
@@ -99,8 +117,14 @@ public class LandManager {
         String key = generateKey(world, x, z);
         Land removed = claimedLands.remove(key);
         if (removed != null) claimCounts.merge(removed.getOwner(), -1, Integer::sum);
-        config.set("claims." + key, null);
-        saveFile();
+        db.async(() -> {
+            try (PreparedStatement ps = db.conn().prepareStatement("DELETE FROM claims WHERE chunk_key = ?")) {
+                ps.setString(1, key);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                BellLands.getInstance().getLogger().log(Level.SEVERE, "Failed to delete claim " + key, e);
+            }
+        });
     }
 
     public Optional<Land> getLandAt(Chunk chunk) {
@@ -234,79 +258,137 @@ public class LandManager {
         return world + ";" + x + ";" + z;
     }
 
+    /** Persists every claim in one async transaction. Used for global operations (rare). */
     public void saveAll() {
-        if (config == null) return;
-        config.set("claims", null);
+        // Snapshot on the calling thread so the writer never touches mutable Land objects.
+        List<Object[]> rows = new ArrayList<>(claimedLands.size());
         for (Map.Entry<String, Land> entry : claimedLands.entrySet()) {
-            String key = entry.getKey();
             Land land = entry.getValue();
-            String path = "claims." + key;
-            config.set(path + ".owner", land.getOwner().toString());
-            config.set(path + ".world", land.getWorldName());
-            config.set(path + ".x", land.getChunkX());
-            config.set(path + ".z", land.getChunkZ());
-
-            for (Map.Entry<String, Boolean> flagEntry : land.getFlags().entrySet()) {
-                config.set(path + ".flags." + flagEntry.getKey(), flagEntry.getValue());
-            }
-
-            List<String> trustedList = new ArrayList<>();
-            for (UUID uuid : land.getTrusted()) {
-                trustedList.add(uuid.toString());
-            }
-            config.set(path + ".trusted", trustedList);
+            rows.add(new Object[]{
+                entry.getKey(), land.getOwner().toString(), land.getWorldName(),
+                land.getChunkX(), land.getChunkZ(), serializeFlags(land), serializeTrusted(land)
+            });
         }
-        saveFile();
+        db.async(() -> {
+            try {
+                db.conn().setAutoCommit(false);
+                try (PreparedStatement ps = db.conn().prepareStatement(UPSERT_SQL)) {
+                    for (Object[] r : rows) {
+                        ps.setString(1, (String) r[0]);
+                        ps.setString(2, (String) r[1]);
+                        ps.setString(3, (String) r[2]);
+                        ps.setInt(4, (int) r[3]);
+                        ps.setInt(5, (int) r[4]);
+                        ps.setString(6, (String) r[5]);
+                        ps.setString(7, (String) r[6]);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+                db.conn().commit();
+            } catch (SQLException e) {
+                BellLands.getInstance().getLogger().log(Level.SEVERE, "Failed to save all claims", e);
+            } finally {
+                try { db.conn().setAutoCommit(true); } catch (SQLException ignored) {}
+            }
+        });
     }
 
+    private static final String UPSERT_SQL =
+        "INSERT INTO claims(chunk_key, owner, world, x, z, flags, trusted) VALUES(?,?,?,?,?,?,?) " +
+        "ON CONFLICT(chunk_key) DO UPDATE SET owner=excluded.owner, world=excluded.world, " +
+        "x=excluded.x, z=excluded.z, flags=excluded.flags, trusted=excluded.trusted";
+
     private void saveSingleLand(String key, Land land) {
-        String path = "claims." + key;
-        config.set(path + ".owner", land.getOwner().toString());
-        config.set(path + ".world", land.getWorldName());
-        config.set(path + ".x", land.getChunkX());
-        config.set(path + ".z", land.getChunkZ());
-
-        for (Map.Entry<String, Boolean> flagEntry : land.getFlags().entrySet()) {
-            config.set(path + ".flags." + flagEntry.getKey(), flagEntry.getValue());
-        }
-
-        List<String> trustedList = new ArrayList<>();
-        for (UUID uuid : land.getTrusted()) {
-            trustedList.add(uuid.toString());
-        }
-        config.set(path + ".trusted", trustedList);
-        saveFile();
+        // Serialize on the calling thread; the captured strings are immutable.
+        String owner = land.getOwner().toString();
+        String world = land.getWorldName();
+        int x = land.getChunkX();
+        int z = land.getChunkZ();
+        String flags = serializeFlags(land);
+        String trusted = serializeTrusted(land);
+        db.async(() -> {
+            try (PreparedStatement ps = db.conn().prepareStatement(UPSERT_SQL)) {
+                ps.setString(1, key);
+                ps.setString(2, owner);
+                ps.setString(3, world);
+                ps.setInt(4, x);
+                ps.setInt(5, z);
+                ps.setString(6, flags);
+                ps.setString(7, trusted);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                BellLands.getInstance().getLogger().log(Level.SEVERE, "Failed to save claim " + key, e);
+            }
+        });
     }
 
     private void loadAll() {
-        if (!file.exists()) return;
-
         claimedLands.clear();
         claimCounts.clear();
-        var section = config.getConfigurationSection("claims");
+
+        try (Statement st = db.conn().createStatement();
+             ResultSet rs = st.executeQuery("SELECT chunk_key, owner, world, x, z, flags, trusted FROM claims")) {
+            while (rs.next()) {
+                String ownerStr = rs.getString("owner");
+                String world = rs.getString("world");
+                if (ownerStr == null || world == null) continue;
+
+                UUID owner;
+                try {
+                    owner = UUID.fromString(ownerStr);
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+
+                Land land = new Land(owner, world, rs.getInt("x"), rs.getInt("z"));
+                applyFlags(land, rs.getString("flags"));
+                applyTrusted(land, rs.getString("trusted"));
+
+                claimedLands.put(rs.getString("chunk_key"), land);
+                claimCounts.merge(owner, 1, Integer::sum);
+            }
+        } catch (SQLException e) {
+            BellLands.getInstance().getLogger().log(Level.SEVERE, "Failed to load claims", e);
+        }
+
+        if (claimedLands.isEmpty()) {
+            importLegacyYaml();
+        }
+    }
+
+    /** One-time import of an existing lands.yml (e.g. after upgrade or LCP migration) into the DB. */
+    private void importLegacyYaml() {
+        File folder = BellLands.getInstance().getDataFolder();
+        File legacy = new File(folder, "lands.yml");
+        if (!legacy.exists()) return;
+
+        FileConfiguration yaml = YamlConfiguration.loadConfiguration(legacy);
+        var section = yaml.getConfigurationSection("claims");
         if (section == null) return;
 
+        int imported = 0;
         for (String key : section.getKeys(false)) {
             String path = "claims." + key;
-            String ownerStr = config.getString(path + ".owner");
-            String world = config.getString(path + ".world");
-            int x = config.getInt(path + ".x");
-            int z = config.getInt(path + ".z");
-
+            String ownerStr = yaml.getString(path + ".owner");
+            String world = yaml.getString(path + ".world");
             if (ownerStr == null || world == null) continue;
 
-            UUID owner = UUID.fromString(ownerStr);
-            Land land = new Land(owner, world, x, z);
-
-            var flagsSection = config.getConfigurationSection(path + ".flags");
-            if (flagsSection != null) {
-                for (String flagName : flagsSection.getKeys(false)) {
-                    land.setFlag(flagName, config.getBoolean(path + ".flags." + flagName));
-                }
+            UUID owner;
+            try {
+                owner = UUID.fromString(ownerStr);
+            } catch (IllegalArgumentException e) {
+                continue;
             }
 
-            List<String> trustedList = config.getStringList(path + ".trusted");
-            for (String uuidStr : trustedList) {
+            Land land = new Land(owner, world, yaml.getInt(path + ".x"), yaml.getInt(path + ".z"));
+            var flagsSection = yaml.getConfigurationSection(path + ".flags");
+            if (flagsSection != null) {
+                for (String flagName : flagsSection.getKeys(false)) {
+                    land.setFlag(flagName, yaml.getBoolean(path + ".flags." + flagName));
+                }
+            }
+            for (String uuidStr : yaml.getStringList(path + ".trusted")) {
                 try {
                     land.addTrusted(UUID.fromString(uuidStr));
                 } catch (IllegalArgumentException ignored) {}
@@ -314,14 +396,54 @@ public class LandManager {
 
             claimedLands.put(key, land);
             claimCounts.merge(owner, 1, Integer::sum);
+            imported++;
+        }
+
+        if (imported > 0) {
+            saveAll();
+            File backup = new File(folder, "lands.yml.imported");
+            if (legacy.renameTo(backup)) {
+                BellLands.getInstance().getLogger().info("Imported " + imported + " claims from lands.yml into the database (backup: lands.yml.imported)");
+            } else {
+                BellLands.getInstance().getLogger().info("Imported " + imported + " claims from lands.yml into the database (could not rename original)");
+            }
         }
     }
 
-    private void saveFile() {
-        try {
-            config.save(file);
-        } catch (IOException e) {
-            BellLands.getInstance().getLogger().severe("Nie udalo sie zapisac pliku lands.yml: " + e.getMessage());
+    // ── Serialization helpers ────────────────────────────────
+    private static String serializeFlags(Land land) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Boolean> e : land.getFlags().entrySet()) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(e.getKey()).append('=').append(e.getValue() ? '1' : '0');
+        }
+        return sb.toString();
+    }
+
+    private static String serializeTrusted(Land land) {
+        StringBuilder sb = new StringBuilder();
+        for (UUID uuid : land.getTrusted()) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(uuid);
+        }
+        return sb.toString();
+    }
+
+    private static void applyFlags(Land land, String flags) {
+        if (flags == null || flags.isEmpty()) return;
+        for (String pair : flags.split(",")) {
+            int eq = pair.lastIndexOf('=');
+            if (eq <= 0) continue;
+            land.setFlag(pair.substring(0, eq), pair.charAt(eq + 1) == '1');
+        }
+    }
+
+    private static void applyTrusted(Land land, String trusted) {
+        if (trusted == null || trusted.isEmpty()) return;
+        for (String uuidStr : trusted.split(",")) {
+            try {
+                land.addTrusted(UUID.fromString(uuidStr.trim()));
+            } catch (IllegalArgumentException ignored) {}
         }
     }
 }

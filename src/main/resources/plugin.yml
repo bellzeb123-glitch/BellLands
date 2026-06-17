@@ -4,6 +4,8 @@ main: pl.bell.lands.BellLands
 api-version: '1.21'
 description: System claimow i teleportacji dla serwerow Minecraft
 author: Bellzeb
+libraries:
+  - org.xerial:sqlite-jdbc:3.46.0.0
 softdepend:
   - Pl3xMap
 

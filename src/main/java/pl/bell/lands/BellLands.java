@@ -67,8 +67,12 @@ public final class BellLands extends JavaPlugin {
     @Override
     public void onDisable() {
         getLogger().info("Zapisywanie dzialek i wylaczanie BellLands...");
+        if (this.warpManager != null) {
+            this.warpManager.flushAll();
+        }
         if (this.landManager != null) {
             this.landManager.saveAll();
+            this.landManager.shutdown();
         }
     }
 

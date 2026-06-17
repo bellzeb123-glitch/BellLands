@@ -15,8 +15,22 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+import org.bukkit.event.entity.PlayerLeashEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemFrame;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Hanging;
+import org.bukkit.entity.Animals;
+import org.bukkit.entity.AbstractHorse;
+import org.bukkit.entity.Tameable;
+import org.bukkit.entity.Vehicle;
+import org.bukkit.entity.Villager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -25,6 +39,7 @@ import pl.bell.lands.BellLands;
 import pl.bell.lands.config.LangManager;
 import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.model.Land;
+import pl.bell.lands.model.ClaimAction;
 import pl.bell.lands.manager.LandManager;
 
 import java.util.Iterator;
@@ -34,6 +49,47 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LandListener implements Listener {
+
+    /**
+     * Lets the Pro addon decide, per action, whether a TRUSTED player is allowed
+     * (named claims grant granular per-trusted permissions). When no resolver is set,
+     * trusted players have full access (classic behaviour).
+     */
+    public interface TrustedAccessResolver {
+        boolean allows(Player player, Land land, ClaimAction action);
+    }
+
+    private static TrustedAccessResolver trustedResolver = null;
+
+    public static void setTrustedResolver(TrustedAccessResolver resolver) {
+        trustedResolver = resolver;
+    }
+
+    /** Central permission check used by every protection handler. */
+    private boolean isAllowed(Player player, Chunk chunk, ClaimAction action) {
+        LandManager lm = BellLands.getInstance().getLandManager();
+        if (lm.hasBypass(player)) return true;
+
+        Optional<Land> opt = lm.getLandAt(chunk);
+        if (opt.isEmpty()) return true; // unclaimed land — no restriction
+
+        Land land = opt.get();
+        if (land.getOwner().equals(player.getUniqueId())) return true;
+
+        if (land.isTrusted(player.getUniqueId())) {
+            return trustedResolver == null || trustedResolver.allows(player, land, action);
+        }
+
+        // Stranger (guest): only what the owner explicitly opened up.
+        return switch (action) {
+            case BUILD -> false;
+            case DOORS -> land.getFlag("guest-doors");
+            case CONTAINERS -> land.getFlag("guest-chest");
+            case USE -> land.getFlag("guest-use");
+            case ANIMALS -> land.getFlag("guest-animals");
+            case FRAMES -> land.getFlag("guest-frames");
+        };
+    }
 
     private static final Set<UUID> particlesDisabled = ConcurrentHashMap.newKeySet();
 
@@ -246,39 +302,123 @@ public class LandListener implements Listener {
         Player player = event.getPlayer();
         Block block = event.getClickedBlock();
         if (block == null) return;
-        if (player.isOp()) return;
-
-        Chunk chunk = block.getChunk();
-        LandManager landManager = BellLands.getInstance().getLandManager();
-        Optional<Land> opt = landManager.getLandAt(chunk);
-        if (opt.isEmpty()) return;
-
-        Land land = opt.get();
-        if (land.getOwner().equals(player.getUniqueId()) || land.isTrusted(player.getUniqueId())) return;
 
         Material mat = block.getType();
-        boolean isDoor = isDoorBlock(mat);
-        boolean isChest = isChestBlock(mat);
-        boolean isUse = isProtectedInteractiveBlock(mat);
-
-        // Guest permissions: allow if the guest flag is on
-        if (isDoor && land.getFlag("guest-doors")) return;
-        if (isChest && land.getFlag("guest-chest")) return;
-        if (isUse && !isDoor && !isChest && land.getFlag("guest-use")) return;
-
-        // Doors flag: blocks door use for everyone (even guests)
-        if (isDoor && !land.getFlag("doors")) {
-            player.sendMessage(BellLands.getInstance().getLangManager()
-                .component("protection-land-belongs"));
-            event.setCancelled(true);
-            return;
+        ClaimAction action;
+        if (isDoorBlock(mat)) {
+            action = ClaimAction.DOORS;
+        } else if (isChestBlock(mat)) {
+            action = ClaimAction.CONTAINERS;
+        } else if (isProtectedInteractiveBlock(mat)) {
+            action = ClaimAction.USE;
+        } else {
+            return; // not a protected interaction
         }
 
-        if (!land.getFlag("use") && isUse) {
+        if (!isAllowed(player, block.getChunk(), action)) {
             player.sendMessage(BellLands.getInstance().getLangManager()
                 .component("protection-land-belongs"));
             event.setCancelled(true);
         }
+    }
+
+    // ── Entity protection: item frames, armor stands, animals, vehicles ──
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
+        Player player = event.getPlayer();
+        Entity entity = event.getRightClicked();
+        ClaimAction action = entityAction(entity);
+        if (action == null) return;
+        if (!isAllowed(player, entity.getLocation().getChunk(), action)) {
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onArmorStandManipulate(PlayerArmorStandManipulateEvent event) {
+        Player player = event.getPlayer();
+        if (!isAllowed(player, event.getRightClicked().getLocation().getChunk(), ClaimAction.FRAMES)) {
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHangingBreak(HangingBreakByEntityEvent event) {
+        if (!(event.getRemover() instanceof Player player)) return;
+        if (!isAllowed(player, event.getEntity().getLocation().getChunk(), ClaimAction.FRAMES)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityProtect(EntityDamageByEntityEvent event) {
+        Entity victim = event.getEntity();
+        ClaimAction action;
+        if (victim instanceof ItemFrame || victim instanceof Hanging || victim instanceof ArmorStand) {
+            action = ClaimAction.FRAMES;
+        } else if (isAnimalOrVehicle(victim)) {
+            action = ClaimAction.ANIMALS;
+        } else {
+            return; // players handled by PVP/mob handlers
+        }
+
+        Player attacker = null;
+        if (event.getDamager() instanceof Player p) attacker = p;
+        else if (event.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player p) attacker = p;
+        if (attacker == null) return;
+
+        if (!isAllowed(attacker, victim.getLocation().getChunk(), action)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onLeash(PlayerLeashEntityEvent event) {
+        if (!isAllowed(event.getPlayer(), event.getEntity().getLocation().getChunk(), ClaimAction.ANIMALS)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onVehicleEnter(VehicleEnterEvent event) {
+        if (!(event.getEntered() instanceof Player player)) return;
+        if (!isAllowed(player, event.getVehicle().getLocation().getChunk(), ClaimAction.ANIMALS)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityMount(org.bukkit.event.entity.EntityMountEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!isAllowed(player, event.getMount().getLocation().getChunk(), ClaimAction.ANIMALS)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** Maps a right-clicked entity to the protection action it needs, or null if unprotected. */
+    private ClaimAction entityAction(Entity entity) {
+        if (entity instanceof ItemFrame || entity instanceof Hanging || entity instanceof ArmorStand) {
+            return ClaimAction.FRAMES;
+        }
+        if (entity instanceof Villager) {
+            return ClaimAction.USE; // trading
+        }
+        if (isAnimalOrVehicle(entity)) {
+            return ClaimAction.ANIMALS;
+        }
+        return null;
+    }
+
+    private boolean isAnimalOrVehicle(Entity entity) {
+        return entity instanceof Animals
+            || entity instanceof AbstractHorse
+            || entity instanceof Tameable
+            || entity instanceof Vehicle;
     }
 
     private boolean isDoorBlock(Material material) {
@@ -535,14 +675,7 @@ public class LandListener implements Listener {
     }
 
     private boolean shouldCancelAction(Player player, Chunk chunk) {
-        if (player.isOp()) return false;
-
-        LandManager landManager = BellLands.getInstance().getLandManager();
-        Optional<Land> opt = landManager.getLandAt(chunk);
-        if (opt.isEmpty()) return false;
-
-        Land land = opt.get();
-        return !land.getOwner().equals(player.getUniqueId()) && !land.isTrusted(player.getUniqueId());
+        return !isAllowed(player, chunk, ClaimAction.BUILD);
     }
 
     private boolean isProtectedInteractiveBlock(Material material) {

@@ -49,8 +49,7 @@ public class ClaimGui {
         inv.setItem(31, item(Material.ENDER_PEARL,
             lang.getRaw("gui-nav-warps"), lang.getRaw("gui-nav-warps-lore")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.MAIN_MENU);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.MAIN_MENU, inv);
     }
 
     // ── FLAGS PAGE ──────────────────────────────────────────
@@ -65,15 +64,15 @@ public class ClaimGui {
         Material.MAGMA_BLOCK,       // lava-damage
         Material.WATER_BUCKET,      // water-flow
         Material.PISTON,            // piston
-        Material.OAK_LEAVES,        // leaf-decay
-        Material.LEVER,             // use
-        Material.OAK_DOOR           // doors
+        Material.OAK_LEAVES         // leaf-decay
     };
 
     public static final Material[] GUEST_MATERIALS = {
         Material.OAK_DOOR,          // guest-doors
         Material.LEVER,             // guest-use
-        Material.CHEST              // guest-chest
+        Material.CHEST,             // guest-chest
+        Material.ITEM_FRAME,        // guest-frames
+        Material.LEAD               // guest-animals
     };
 
     public static boolean isFlagLocked(String flag) {
@@ -105,8 +104,7 @@ public class ClaimGui {
 
         inv.setItem(45, item(Material.ARROW, lang.getRaw("gui-back")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.FLAGS);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.FLAGS, inv);
     }
 
     // Helper: get flag index from slot in flags page
@@ -139,8 +137,7 @@ public class ClaimGui {
 
         inv.setItem(18, item(Material.ARROW, lang.getRaw("gui-back")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.GUEST_FLAGS);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.GUEST_FLAGS, inv);
     }
 
     // ── MEMBERS PAGE ────────────────────────────────────────
@@ -177,8 +174,7 @@ public class ClaimGui {
 
         inv.setItem(36, item(Material.ARROW, lang.getRaw("gui-back")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.MEMBERS);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.MEMBERS, inv);
     }
 
     // ── ADD TRUSTED PAGE ────────────────────────────────────
@@ -209,8 +205,7 @@ public class ClaimGui {
 
         inv.setItem(size - 1, item(Material.ARROW, lang.getRaw("gui-back")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.ADD_TRUSTED);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.ADD_TRUSTED, inv);
     }
 
     // ── WARPS PAGE ──────────────────────────────────────────
@@ -239,8 +234,7 @@ public class ClaimGui {
 
         inv.setItem(36, item(Material.ARROW, lang.getRaw("gui-back")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.WARPS);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.WARPS, inv);
     }
 
     // ── MAP PAGE (7x5 chunk grid) ───────────────────────────
@@ -311,8 +305,7 @@ public class ClaimGui {
 
         inv.setItem(49, item(Material.ARROW, lang.getRaw("gui-back")));
 
-        player.openInventory(inv);
-        ClaimGuiListener.markOpen(player.getUniqueId(), ClaimGuiListener.GuiType.MAP);
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.MAP, inv);
     }
 
     // ── HELPER ──────────────────────────────────────────────

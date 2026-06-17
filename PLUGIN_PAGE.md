@@ -66,7 +66,7 @@ Control what **non-trusted** visitors can do on your land:
     - Toggle particle borders globally
     - Change server language (PL/EN)
     - **Lock flags globally** — prevent players from changing specific flags
-    - **Set default flag values** — configure flag defaults for newly created claims
+    - **Set default flag values** — applies instantly to all regular claims (named claims excluded with Pro) and new claims
 - **OP bypass** — operators bypass all land protections
 
 ### Warps

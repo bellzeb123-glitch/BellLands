@@ -47,6 +47,22 @@ public class LandManager {
         loadAll();
     }
 
+    // Admins with claim/region bypass turned OFF (default: bypass ON for those with permission).
+    private final Set<UUID> bypassDisabled = ConcurrentHashMap.newKeySet();
+
+    /** Whether the player currently ignores claim/region protection (admin bypass). */
+    public boolean hasBypass(org.bukkit.entity.Player player) {
+        if (!player.hasPermission("belllands.admin") && !player.isOp()) return false;
+        return !bypassDisabled.contains(player.getUniqueId());
+    }
+
+    /** Toggles admin bypass for a player. Returns the new state (true = bypass now ON). */
+    public boolean toggleBypass(UUID player) {
+        if (bypassDisabled.remove(player)) return true; // re-enabled
+        bypassDisabled.add(player);
+        return false; // now disabled
+    }
+
     public Database getDatabase() {
         return db;
     }
@@ -73,12 +89,21 @@ public class LandManager {
     }
 
     /**
-     * Applies a protection flag value to every claim (used when the global default
-     * flag template changes). Writes once and refreshes the map. Addons that need to
-     * exclude certain claims (e.g. named claims) should register a DefaultFlagPropagator.
+     * Applies a flag value to every claim (used when admin default flags change).
+     * Addons may exclude chunks (e.g. named-claim chunks) via {@link #applyFlagExcludingChunks}.
      */
     public void applyFlagToAllClaims(String flag, boolean value) {
+        applyFlagExcludingChunks(flag, value, java.util.Collections.emptySet());
+    }
+
+    /**
+     * Applies a flag to all claims except those whose chunk key is in {@code excludeChunkKeys}.
+     * Chunk key format: {@code world;x;z}.
+     */
+    public void applyFlagExcludingChunks(String flag, boolean value, java.util.Set<String> excludeChunkKeys) {
         for (Land land : claimedLands.values()) {
+            String key = generateKey(land.getWorldName(), land.getChunkX(), land.getChunkZ());
+            if (excludeChunkKeys.contains(key)) continue;
             land.setFlag(flag, value);
         }
         saveAll();

@@ -23,7 +23,7 @@ public class LangManager {
     }
 
     public void reload() {
-        String language = plugin.getConfig().getString("language", "pl");
+        String language = plugin.getConfig().getString("language", "en");
         lang = loadAndMerge(language);
     }
 

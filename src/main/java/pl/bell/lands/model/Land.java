@@ -19,11 +19,13 @@ public class Land {
 
     public static final String[] ALL_FLAGS = {
         "pvp", "explosions", "explosion-damage", "fire-spread", "mob-spawning", "mob-damage",
-        "lava-flow", "lava-damage", "water-flow", "piston", "leaf-decay", "use", "doors"
+        "lava-flow", "lava-damage", "water-flow", "piston", "leaf-decay"
     };
 
+    // Guest permissions: what strangers (non-owner, non-trusted) may do on a claim.
+    // All default to false (blocked) — the owner opens up access deliberately.
     public static final String[] GUEST_FLAGS = {
-        "guest-doors", "guest-use", "guest-chest"
+        "guest-doors", "guest-use", "guest-chest", "guest-frames", "guest-animals"
     };
 
     public Land(UUID owner, String worldName, int chunkX, int chunkZ) {

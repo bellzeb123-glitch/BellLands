@@ -1,6 +1,6 @@
 # BellLands Configuration
 
-language: pl
+language: en
 
 claims:
   max-per-player: 5

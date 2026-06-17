@@ -62,8 +62,7 @@ public class AdminGui {
         inv.setItem(49, ClaimGui.item(Material.COMPARATOR,
             lang.getRaw("admin-settings"), lang.getRaw("admin-settings-lore")));
 
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_MAIN);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_MAIN, inv);
     }
 
     // ── PLAYER CLAIMS: individual + zone view ───────────────
@@ -113,10 +112,9 @@ public class AdminGui {
         inv.setItem(53, ClaimGui.item(Material.TNT,
             lang.getRaw("admin-delete-all"), lang.getRaw("admin-delete-all-lore")));
 
-        admin.openInventory(inv);
         AdminGuiContext.set(admin.getUniqueId(), targetOwner, playerLands);
         AdminGuiContext.setZones(admin.getUniqueId(), zones);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_PLAYER_CLAIMS);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_PLAYER_CLAIMS, inv);
     }
 
     // ── CLAIM DETAIL ────────────────────────────────────────
@@ -185,8 +183,7 @@ public class AdminGui {
             lang.getRaw("admin-delete-claim"), lang.getRaw("admin-delete-claim-lore")));
 
         AdminGuiContext.setCurrentLand(admin.getUniqueId(), land);
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_CLAIM_DETAIL);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_CLAIM_DETAIL, inv);
     }
 
     // ── PLAYER WARPS ────────────────────────────────────────
@@ -220,8 +217,7 @@ public class AdminGui {
         inv.setItem(size - 1, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
 
         AdminGuiContext.set(admin.getUniqueId(), targetOwner, null);
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_WARPS);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_WARPS, inv);
     }
 
     // ── SETTINGS PAGE ───────────────────────────────────────
@@ -259,8 +255,7 @@ public class AdminGui {
 
         inv.setItem(27, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
 
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_SETTINGS);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_SETTINGS, inv);
     }
 
     // ── LOCKED FLAGS PAGE ────────────────────────────────────
@@ -301,8 +296,7 @@ public class AdminGui {
 
         inv.setItem(45, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
 
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_LOCKED_FLAGS);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_LOCKED_FLAGS, inv);
     }
 
     // ── DEFAULTS PAGE ─────────────────────────────────────────
@@ -328,8 +322,7 @@ public class AdminGui {
             lang.getRaw("gui-nav-guest"), lang.getRaw("gui-nav-guest-lore")));
         inv.setItem(45, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
 
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_DEFAULTS);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_DEFAULTS, inv);
     }
 
     public static void openDefaultsGuest(Player admin) {
@@ -351,8 +344,7 @@ public class AdminGui {
 
         inv.setItem(18, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
 
-        admin.openInventory(inv);
-        ClaimGuiListener.markOpen(admin.getUniqueId(), ClaimGuiListener.GuiType.ADMIN_DEFAULTS_GUEST);
+        ClaimGuiListener.openGui(admin, ClaimGuiListener.GuiType.ADMIN_DEFAULTS_GUEST, inv);
     }
 
     // ── Zone grouping ───────────────────────────────────────

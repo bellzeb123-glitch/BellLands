@@ -29,7 +29,7 @@ commands:
     permission: belllands.claim
   belllands:
     description: Zarzadzanie pluginem BellLands
-    usage: /belllands [language <en|pl>]
+    usage: /belllands [language <en|pl>|reload]
 
 permissions:
   belllands.*:

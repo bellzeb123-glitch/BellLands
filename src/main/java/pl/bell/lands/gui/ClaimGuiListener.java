@@ -9,6 +9,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import pl.bell.lands.BellLands;
@@ -50,13 +51,35 @@ public class ClaimGuiListener implements Listener {
         void propagate(java.util.UUID owner, String world, int chunkX, int chunkZ, String flag, boolean value);
     }
 
+    /** Lets an addon inject GUI buttons and handle addon-specific clicks without title matching. */
+    public interface GuiAddonHook {
+        void enhanceInventory(Player player, GuiType type, Inventory inv);
+        /** @return true if the click was fully handled by the addon */
+        boolean tryHandleClick(Player player, GuiType type, InventoryClickEvent event);
+    }
+
     private static ProtectionFlagGate protectionGate = null;
     private static DefaultFlagPropagator defaultFlagPropagator = null;
     private static GuestFlagPropagator guestFlagPropagator = null;
+    private static final List<GuiAddonHook> addonHooks = new ArrayList<>();
 
     public static void setProtectionGate(ProtectionFlagGate gate) { protectionGate = gate; }
     public static void setDefaultFlagPropagator(DefaultFlagPropagator p) { defaultFlagPropagator = p; }
     public static void setGuestFlagPropagator(GuestFlagPropagator p) { guestFlagPropagator = p; }
+    public static void addGuiAddonHook(GuiAddonHook hook) { addonHooks.add(hook); }
+
+    /** Opens a tracked GUI, running addon enhancers first. */
+    public static void openGui(Player player, GuiType type, Inventory inv) {
+        for (GuiAddonHook hook : addonHooks) {
+            try {
+                hook.enhanceInventory(player, type, inv);
+            } catch (Exception e) {
+                BellLands.getInstance().getLogger().warning("GUI addon hook failed: " + e.getMessage());
+            }
+        }
+        player.openInventory(inv);
+        markOpen(player.getUniqueId(), type);
+    }
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
@@ -82,6 +105,14 @@ public class ClaimGuiListener implements Listener {
         if (type == null) return;
 
         event.setCancelled(true);
+
+        for (GuiAddonHook hook : addonHooks) {
+            try {
+                if (hook.tryHandleClick(player, type, event)) return;
+            } catch (Exception e) {
+                BellLands.getInstance().getLogger().warning("GUI addon click hook failed: " + e.getMessage());
+            }
+        }
 
         switch (type) {
             case MAIN_MENU -> handleMainMenu(player, event);
@@ -190,8 +221,8 @@ public class ClaimGuiListener implements Listener {
             return;
         }
 
-        // Guest flag slots: 11, 12, 13
-        if (slot >= 11 && slot <= 13) {
+        // Guest flag slots: 11..15 (one per GUEST_FLAGS entry)
+        if (slot >= 11 && slot <= 15) {
             int idx = slot - 11;
             if (idx < Land.GUEST_FLAGS.length) {
                 String flag = Land.GUEST_FLAGS[idx];
@@ -553,8 +584,8 @@ public class ClaimGuiListener implements Listener {
             return;
         }
 
-        // Guest flags (row 3: slots 27, 28, 29)
-        if (slot >= 27 && slot <= 29) {
+        // Guest flags (row 3, base slot 27)
+        if (slot >= 27 && slot <= 31) {
             int gIdx = slot - 27;
             if (gIdx < Land.GUEST_FLAGS.length) {
                 String flag = Land.GUEST_FLAGS[gIdx];
@@ -691,8 +722,8 @@ public class ClaimGuiListener implements Listener {
             return;
         }
 
-        // Guest flags: slots 28, 29, 30
-        if (slot >= 28 && slot <= 30) {
+        // Guest flags: base slot 28
+        if (slot >= 28 && slot <= 32) {
             int gIdx = slot - 28;
             if (gIdx < Land.GUEST_FLAGS.length) {
                 toggleLockedFlag(player, Land.GUEST_FLAGS[gIdx]);
@@ -740,7 +771,7 @@ public class ClaimGuiListener implements Listener {
             return;
         }
 
-        if (slot >= 11 && slot <= 13) {
+        if (slot >= 11 && slot <= 15) {
             int gIdx = slot - 11;
             if (gIdx < Land.GUEST_FLAGS.length) {
                 String flag = Land.GUEST_FLAGS[gIdx];
@@ -763,14 +794,11 @@ public class ClaimGuiListener implements Listener {
             : plugin.getLangManager().getRaw("gui-flag-off");
         player.sendMessage(plugin.getLangManager().component("admin-default-changed", "flag", flag, "value", status));
 
-        // Protection flags act as a global template — propagate the change to existing claims.
-        // Guest flags stay per-claim, so they are not propagated.
-        if (!Land.isGuestFlag(flag)) {
-            if (defaultFlagPropagator != null) {
-                defaultFlagPropagator.propagate(flag, newValue);
-            } else {
-                plugin.getLandManager().applyFlagToAllClaims(flag, newValue);
-            }
+        // Admin defaults are a global template — propagate to all regular claims (addons may exclude named).
+        if (defaultFlagPropagator != null) {
+            defaultFlagPropagator.propagate(flag, newValue);
+        } else {
+            plugin.getLandManager().applyFlagToAllClaims(flag, newValue);
         }
     }
 

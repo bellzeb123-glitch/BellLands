@@ -93,7 +93,7 @@ public class ClaimCommand implements CommandExecutor {
             case "outline" -> handleOutline(player, landManager, lang);
             case "fill" -> handleFill(player, chunk, landManager, lang);
             case "particles" -> handleParticles(player, lang);
-            case "admin" -> handleAdmin(player, lang);
+            case "admin" -> handleAdmin(player, args, landManager, lang);
             case "help" -> sendHelp(player, lang);
             default -> sendHelp(player, lang);
         }
@@ -378,9 +378,14 @@ public class ClaimCommand implements CommandExecutor {
         player.sendMessage(lang.component(enabled ? "particles-on" : "particles-off"));
     }
 
-    private void handleAdmin(Player player, LangManager lang) {
+    private void handleAdmin(Player player, String[] args, LandManager landManager, LangManager lang) {
         if (!player.hasPermission("belllands.admin") && !player.isOp()) {
             player.sendMessage(lang.component("no-permission"));
+            return;
+        }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("bypass")) {
+            boolean on = landManager.toggleBypass(player.getUniqueId());
+            player.sendMessage(lang.component(on ? "admin-bypass-on" : "admin-bypass-off"));
             return;
         }
         AdminGui.openMain(player);

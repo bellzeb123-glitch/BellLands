@@ -35,6 +35,10 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args[0].equalsIgnoreCase("language") || args[0].equalsIgnoreCase("lang")) {
+            if (!sender.hasPermission("belllands.admin")) {
+                sender.sendMessage(lang.component("reload-no-permission"));
+                return true;
+            }
             if (args.length < 2) {
                 sender.sendMessage(lang.component("language-usage"));
                 return true;
@@ -64,13 +68,17 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> options = new java.util.ArrayList<>(List.of("language"));
+            List<String> options = new java.util.ArrayList<>();
             if (sender.hasPermission("belllands.admin")) {
+                options.add("language");
                 options.add("reload");
             }
             return filter(options, args[0]);
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("language") || args[0].equalsIgnoreCase("lang"))) {
+            if (!sender.hasPermission("belllands.admin")) {
+                return List.of();
+            }
             return filter(List.of("en", "pl"), args[1]);
         }
         return List.of();

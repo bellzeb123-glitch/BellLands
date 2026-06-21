@@ -23,7 +23,7 @@ import java.util.*;
 
 public class ClaimGuiListener implements Listener {
 
-    public enum GuiType { MAIN_MENU, FLAGS, GUEST_FLAGS, MEMBERS, ADD_TRUSTED, WARPS, MAP,
+    public enum GuiType { MAIN_MENU, FLAGS, GUEST_FLAGS, HOME_FLAGS, MEMBERS, ADD_TRUSTED, WARPS, MAP,
         ADMIN_MAIN, ADMIN_PLAYER_CLAIMS, ADMIN_CLAIM_DETAIL, ADMIN_WARPS,
         ADMIN_SETTINGS, ADMIN_LOCKED_FLAGS, ADMIN_DEFAULTS, ADMIN_DEFAULTS_GUEST }
 
@@ -118,6 +118,7 @@ public class ClaimGuiListener implements Listener {
             case MAIN_MENU -> handleMainMenu(player, event);
             case FLAGS -> handleFlags(player, event);
             case GUEST_FLAGS -> handleGuestFlags(player, event);
+            case HOME_FLAGS -> handleHomeFlags(player, event);
             case MEMBERS -> handleMembers(player, event);
             case ADD_TRUSTED -> handleAddTrusted(player, event);
             case WARPS -> handleWarps(player, event);
@@ -246,6 +247,44 @@ public class ClaimGuiListener implements Listener {
 
                 Bukkit.getScheduler().runTask(BellLands.getInstance(),
                     () -> ClaimGui.openGuestFlags(player, land));
+            }
+        }
+    }
+
+    private void handleHomeFlags(Player player, InventoryClickEvent event) {
+        int slot = event.getRawSlot();
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+
+        Chunk chunk = player.getLocation().getChunk();
+        LandManager landManager = BellLands.getInstance().getLandManager();
+        Optional<Land> opt = landManager.getLandAt(chunk);
+        if (opt.isEmpty()) return;
+        Land land = opt.get();
+        if (!land.getOwner().equals(player.getUniqueId()) && !player.isOp()) return;
+
+        if (slot == 18) {
+            Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                () -> ClaimGui.openMainMenu(player, land));
+            return;
+        }
+
+        if (slot >= 11 && slot <= 14) {
+            int idx = slot - 11;
+            if (idx < Land.HOME_FLAGS.length) {
+                String flag = Land.HOME_FLAGS[idx];
+                if (ClaimGui.isFlagLocked(flag) && !player.isOp()) {
+                    player.sendMessage(BellLands.getInstance().getLangManager()
+                        .component("flag-locked-msg"));
+                    return;
+                }
+                boolean newValue = !land.getFlag(flag);
+                land.setFlag(flag, newValue);
+                landManager.saveLand(land);
+                landManager.applyGuestFlagToGroup(land.getOwner(), land.getWorldName(),
+                    land.getChunkX(), land.getChunkZ(), flag, newValue);
+                Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                    () -> ClaimGui.openHomeFlags(player, land));
             }
         }
     }
@@ -467,6 +506,12 @@ public class ClaimGuiListener implements Listener {
             return;
         }
 
+        if (slot == 47 && targetOwner != null) {
+            Bukkit.getScheduler().runTask(BellLands.getInstance(),
+                () -> AdminGui.openPlayerWarps(player, targetOwner));
+            return;
+        }
+
         // Delete all button
         if (slot == 53 && targetOwner != null) {
             List<Land> all = landManager.getAllLands().stream()
@@ -624,6 +669,10 @@ public class ClaimGuiListener implements Listener {
                 Bukkit.getScheduler().runTask(BellLands.getInstance(),
                     () -> AdminGui.openPlayerClaims(player, targetOwner));
             }
+            return;
+        }
+
+        if (clicked.getType() == Material.COMPASS || clicked.getType() == Material.BARRIER) {
             return;
         }
 

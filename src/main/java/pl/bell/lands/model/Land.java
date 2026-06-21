@@ -28,6 +28,11 @@ public class Land {
         "guest-doors", "guest-use", "guest-chest", "guest-frames", "guest-animals"
     };
 
+    /** Home set/teleport permissions for trusted members and guests. */
+    public static final String[] HOME_FLAGS = {
+        "home-trusted-set", "home-guest-set", "home-trusted-tp", "home-guest-tp"
+    };
+
     public Land(UUID owner, String worldName, int chunkX, int chunkZ) {
         this.owner = owner;
         this.worldName = worldName;
@@ -45,6 +50,17 @@ public class Land {
             boolean def = config.getBoolean("claims.default-flags." + gf, false);
             flags.put(gf, def);
         }
+        for (String hf : HOME_FLAGS) {
+            boolean def = config.getBoolean("claims.default-flags." + hf, defaultHomeFlag(hf));
+            flags.put(hf, def);
+        }
+    }
+
+    private static boolean defaultHomeFlag(String flag) {
+        return switch (flag) {
+            case "home-trusted-set", "home-trusted-tp" -> true;
+            default -> false;
+        };
     }
 
     private static boolean getHardcodedDefault(String flag) {
@@ -74,11 +90,21 @@ public class Land {
         for (String f : GUEST_FLAGS) {
             if (f.equalsIgnoreCase(flag)) return true;
         }
+        for (String f : HOME_FLAGS) {
+            if (f.equalsIgnoreCase(flag)) return true;
+        }
         return false;
     }
 
     public static boolean isGuestFlag(String flag) {
         for (String f : GUEST_FLAGS) {
+            if (f.equalsIgnoreCase(flag)) return true;
+        }
+        return false;
+    }
+
+    public static boolean isHomeFlag(String flag) {
+        for (String f : HOME_FLAGS) {
             if (f.equalsIgnoreCase(flag)) return true;
         }
         return false;

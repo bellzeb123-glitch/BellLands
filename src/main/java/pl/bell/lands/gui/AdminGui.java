@@ -2,6 +2,7 @@ package pl.bell.lands.gui;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -23,17 +24,25 @@ public class AdminGui {
     public static void openMain(Player admin) {
         LangManager lang = BellLands.getInstance().getLangManager();
         LandManager landManager = BellLands.getInstance().getLandManager();
+        WarpManager warpManager = BellLands.getInstance().getWarpManager();
 
         Set<UUID> owners = new LinkedHashSet<>();
         for (Land land : landManager.getAllLands()) {
             owners.add(land.getOwner());
         }
+        owners.addAll(warpManager.getAllWarpOwners());
+
+        List<UUID> sortedOwners = new ArrayList<>(owners);
+        sortedOwners.sort(Comparator.comparing(uuid -> {
+            String name = Bukkit.getOfflinePlayer(uuid).getName();
+            return name != null ? name.toLowerCase(Locale.ROOT) : uuid.toString();
+        }));
 
         Inventory inv = Bukkit.createInventory(null, 54,
             lang.colorize(lang.getRaw("admin-main-title")));
 
         int slot = 0;
-        for (UUID uuid : owners) {
+        for (UUID uuid : sortedOwners) {
             if (slot >= 44) break;
             OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
             String name = op.getName();
@@ -47,6 +56,7 @@ public class AdminGui {
             meta.displayName(lang.colorize("&e" + name));
             meta.lore(List.of(
                 lang.colorize(lang.getRaw("admin-player-claims", "count", claimCount)),
+                lang.colorize(warpLimitLine(lang, warpManager, uuid)),
                 lang.colorize(lang.getRaw("admin-player-click")),
                 lang.colorize(lang.getRaw("admin-player-shift-delete"))
             ));
@@ -54,7 +64,7 @@ public class AdminGui {
             inv.setItem(slot++, head);
         }
 
-        if (owners.isEmpty()) {
+        if (sortedOwners.isEmpty()) {
             inv.setItem(22, ClaimGui.item(Material.BARRIER, lang.getRaw("admin-no-claims")));
         }
 
@@ -69,6 +79,7 @@ public class AdminGui {
     public static void openPlayerClaims(Player admin, UUID targetOwner) {
         LangManager lang = BellLands.getInstance().getLangManager();
         LandManager landManager = BellLands.getInstance().getLandManager();
+        WarpManager warpManager = BellLands.getInstance().getWarpManager();
 
         List<Land> playerLands = landManager.getAllLands().stream()
             .filter(l -> l.getOwner().equals(targetOwner))
@@ -109,6 +120,13 @@ public class AdminGui {
 
         // Bottom
         inv.setItem(45, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
+        int warpCount = warpManager.getWarpCount(targetOwner);
+        int warpMax = warpManager.getMaxWarpsForOwner(targetOwner);
+        String warpButtonLore = warpManager.isUnlimitedWarps(warpMax)
+            ? lang.getRaw("admin-warps-button-lore-unlimited", "count", warpCount)
+            : lang.getRaw("admin-warps-button-lore", "count", warpCount, "max", warpMax);
+        inv.setItem(47, ClaimGui.item(Material.ENDER_PEARL,
+            lang.getRaw("admin-warps-button"), warpButtonLore, lang.getRaw("admin-view-warps-lore")));
         inv.setItem(53, ClaimGui.item(Material.TNT,
             lang.getRaw("admin-delete-all"), lang.getRaw("admin-delete-all-lore")));
 
@@ -191,27 +209,51 @@ public class AdminGui {
         LangManager lang = BellLands.getInstance().getLangManager();
         WarpManager warpManager = BellLands.getInstance().getWarpManager();
 
-        Set<String> names = warpManager.getWarpNames(targetOwner);
+        Map<String, Location> playerWarps = new LinkedHashMap<>();
+        for (String name : warpManager.getWarpNames(targetOwner)) {
+            Location loc = warpManager.getWarp(targetOwner, name);
+            if (loc != null) {
+                playerWarps.put(name, loc);
+            }
+        }
+
         String ownerName = Bukkit.getOfflinePlayer(targetOwner).getName();
         if (ownerName == null) ownerName = "?";
 
-        int size = Math.max(9, ((names.size() + 1) / 9 + 1) * 9);
+        int warpCount = playerWarps.size();
+        int warpMax = warpManager.getMaxWarpsForOwner(targetOwner);
+        String limitLine = warpManager.isUnlimitedWarps(warpMax)
+            ? lang.getRaw("admin-warps-limit-unlimited", "count", warpCount)
+            : lang.getRaw("admin-warps-limit", "count", warpCount, "max", warpMax);
+
+        int size = Math.max(27, ((Math.max(warpCount, 1) + 8) / 9 + 1) * 9);
         if (size > 54) size = 54;
 
         Inventory inv = Bukkit.createInventory(null, size,
             lang.colorize(lang.getRaw("admin-warps-title", "player", ownerName)));
 
-        int slot = 0;
-        for (String name : names) {
+        inv.setItem(4, ClaimGui.item(Material.COMPASS,
+            lang.getRaw("admin-warps-limit-header"), limitLine));
+
+        int slot = 9;
+        for (Map.Entry<String, Location> entry : playerWarps.entrySet()) {
             if (slot >= size - 1) break;
+            Location loc = entry.getValue();
+            String worldName = loc.getWorld() != null ? loc.getWorld().getName() : "?";
             inv.setItem(slot++, ClaimGui.item(Material.ENDER_PEARL,
-                "&b" + name,
+                "&b" + entry.getKey(),
+                lang.getRaw("admin-warp-location",
+                    "world", worldName,
+                    "x", (int) Math.floor(loc.getX()),
+                    "y", (int) Math.floor(loc.getY()),
+                    "z", (int) Math.floor(loc.getZ())),
                 lang.getRaw("admin-warp-click-tp"),
                 lang.getRaw("admin-warp-shift-delete")));
+            if (slot % 9 == 8) slot += 2;
         }
 
-        if (names.isEmpty()) {
-            inv.setItem(4, ClaimGui.item(Material.BARRIER, lang.getRaw("warp-none")));
+        if (playerWarps.isEmpty()) {
+            inv.setItem(22, ClaimGui.item(Material.BARRIER, lang.getRaw("warp-none")));
         }
 
         inv.setItem(size - 1, ClaimGui.item(Material.ARROW, lang.getRaw("gui-back")));
@@ -394,6 +436,15 @@ public class AdminGui {
             maxZ = Math.max(maxZ, l.getChunkZ());
         }
         return new int[]{minX, minZ, maxX, maxZ};
+    }
+
+    private static String warpLimitLine(LangManager lang, WarpManager warpManager, UUID owner) {
+        int count = warpManager.getWarpCount(owner);
+        int max = warpManager.getMaxWarpsForOwner(owner);
+        if (warpManager.isUnlimitedWarps(max)) {
+            return lang.getRaw("admin-player-warps-unlimited", "count", count);
+        }
+        return lang.getRaw("admin-player-warps", "count", count, "max", max);
     }
 
     // ── Context ─────────────────────────────────────────────

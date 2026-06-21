@@ -22,6 +22,10 @@ claims:
     guest-doors: false
     guest-use: false
     guest-chest: false
+    home-trusted-set: true
+    home-guest-set: false
+    home-trusted-tp: true
+    home-guest-tp: false
 
   # Locked flags - players cannot change these (admin only)
   # Example: locked-flags: [fire-spread, explosions]

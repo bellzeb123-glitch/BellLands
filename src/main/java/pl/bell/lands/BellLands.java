@@ -5,8 +5,10 @@ import pl.bell.lands.command.BellLandsCommand;
 import pl.bell.lands.command.ClaimCommand;
 import pl.bell.lands.command.ClaimTabCompleter;
 import pl.bell.lands.command.TpaCommand;
+import pl.bell.lands.command.WarpCommand;
 import pl.bell.lands.config.LangManager;
 import pl.bell.lands.gui.ClaimGuiListener;
+import pl.bell.lands.integration.LuckPermsWarpHook;
 import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.listener.LandListener;
 import pl.bell.lands.manager.LandManager;
@@ -34,11 +36,13 @@ public final class BellLands extends JavaPlugin {
         this.landManager.init();
         this.warpManager = new WarpManager();
         this.warpManager.init();
+        LuckPermsWarpHook.init();
 
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
         ClaimCommand claimCommand = new ClaimCommand();
         ClaimTabCompleter claimTabCompleter = new ClaimTabCompleter();
         BellLandsCommand bellLandsCommand = new BellLandsCommand();
+        WarpCommand warpCommand = new WarpCommand();
 
         if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
         if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
@@ -51,6 +55,10 @@ public final class BellLands extends JavaPlugin {
             getCommand("belllands").setExecutor(bellLandsCommand);
             getCommand("belllands").setTabCompleter(bellLandsCommand);
         }
+        registerWarpCommand("warp", warpCommand);
+        registerWarpCommand("setwarp", warpCommand);
+        registerWarpCommand("delwarp", warpCommand);
+        registerWarpCommand("warps", warpCommand);
 
         LandListener landListener = new LandListener();
         getServer().getPluginManager().registerEvents(landListener, this);
@@ -77,6 +85,16 @@ public final class BellLands extends JavaPlugin {
     }
 
     private static final java.util.List<Runnable> reloadHooks = new java.util.ArrayList<>();
+    private static java.util.function.Function<org.bukkit.entity.Player, Integer> claimLimitResolver;
+
+    /** Lets addons (e.g. BellLandsPro) resolve max claims (groups, VIP, overrides). */
+    public static void setClaimLimitResolver(java.util.function.Function<org.bukkit.entity.Player, Integer> resolver) {
+        claimLimitResolver = resolver;
+    }
+
+    public static Integer resolveMaxClaims(org.bukkit.entity.Player player) {
+        return claimLimitResolver != null ? claimLimitResolver.apply(player) : null;
+    }
 
     /** Lets addons (e.g. BellLandsPro) reload their own config/lang when the core reloads. */
     public static void addReloadHook(Runnable hook) {
@@ -102,6 +120,14 @@ public final class BellLands extends JavaPlugin {
     public LandManager getLandManager() { return landManager; }
     public LangManager getLangManager() { return langManager; }
     public WarpManager getWarpManager() { return warpManager; }
+
+    private void registerWarpCommand(String name, WarpCommand executor) {
+        var cmd = getCommand(name);
+        if (cmd != null) {
+            cmd.setExecutor(executor);
+            cmd.setTabCompleter(executor);
+        }
+    }
 
     private void printBanner() {
         var c = org.bukkit.Bukkit.getConsoleSender();

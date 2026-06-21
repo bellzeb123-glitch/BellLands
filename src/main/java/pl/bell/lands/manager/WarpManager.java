@@ -7,6 +7,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import pl.bell.lands.BellLands;
+import pl.bell.lands.integration.LuckPermsWarpHook;
 import pl.bell.lands.storage.Database;
 
 import java.io.File;
@@ -58,7 +59,15 @@ public class WarpManager {
         return playerWarps == null ? 0 : playerWarps.size();
     }
 
+    public Set<UUID> getAllWarpOwners() {
+        return Collections.unmodifiableSet(warps.keySet());
+    }
+
     public int getMaxWarps(Player player) {
+        if (player.hasPermission("belllandspro.unlimited-warps")
+            || player.hasPermission("belllands.warps.unlimited")) {
+            return Integer.MAX_VALUE;
+        }
         int configMax = BellLands.getInstance().getConfig().getInt("claims.max-warps", 3);
         for (int i = 50; i >= 1; i--) {
             if (player.hasPermission("belllands.warps." + i)) {
@@ -66,6 +75,23 @@ public class WarpManager {
             }
         }
         return configMax;
+    }
+
+    /** Effective warp limit for admin tools — online players, LuckPerms cache, then config default. */
+    public int getMaxWarpsForOwner(UUID owner) {
+        Player online = Bukkit.getPlayer(owner);
+        if (online != null) {
+            return getMaxWarps(online);
+        }
+        Integer lpMax = LuckPermsWarpHook.resolveMaxWarps(owner);
+        if (lpMax != null) {
+            return lpMax;
+        }
+        return BellLands.getInstance().getConfig().getInt("claims.max-warps", 3);
+    }
+
+    public boolean isUnlimitedWarps(int max) {
+        return max == Integer.MAX_VALUE;
     }
 
     private static final String UPSERT_SQL =

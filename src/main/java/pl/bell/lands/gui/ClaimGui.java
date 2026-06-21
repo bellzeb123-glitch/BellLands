@@ -140,6 +140,29 @@ public class ClaimGui {
         ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.GUEST_FLAGS, inv);
     }
 
+    public static final Material[] HOME_MATERIALS = {
+        Material.RED_BED, Material.WHITE_BED, Material.LIGHT_BLUE_BED, Material.LIME_BED
+    };
+
+    public static void openHomeFlags(Player player, Land land) {
+        LangManager lang = BellLands.getInstance().getLangManager();
+        Inventory inv = Bukkit.createInventory(null, 27,
+            lang.colorize(lang.getRaw("gui-home-title")));
+
+        for (int i = 0; i < Land.HOME_FLAGS.length; i++) {
+            String flag = Land.HOME_FLAGS[i];
+            boolean value = land.getFlag(flag);
+            String flagName = lang.getRaw("gui-flag-" + flag);
+            String status = value ? lang.getRaw("gui-flag-on") : lang.getRaw("gui-flag-off");
+            boolean locked = isFlagLocked(flag);
+            String lore = locked ? lang.getRaw("gui-flag-locked") : lang.getRaw("gui-flag-lore");
+            inv.setItem(11 + i, item(HOME_MATERIALS[i], flagName, status, lore));
+        }
+
+        inv.setItem(18, item(Material.ARROW, lang.getRaw("gui-back")));
+        ClaimGuiListener.openGui(player, ClaimGuiListener.GuiType.HOME_FLAGS, inv);
+    }
+
     // ── MEMBERS PAGE ────────────────────────────────────────
     public static void openMembers(Player player, Land land) {
         LangManager lang = BellLands.getInstance().getLangManager();

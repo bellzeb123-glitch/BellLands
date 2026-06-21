@@ -86,10 +86,28 @@ public class ClaimCommand implements CommandExecutor {
             case "flags" -> handleFlagsList(player, chunk, landManager, lang);
             case "info" -> handleInfo(player, chunk, landManager, lang);
             case "menu" -> handleGui(player, chunk, landManager, lang);
-            case "setwarp" -> handleSetWarp(player, args, chunk, landManager, lang);
-            case "delwarp" -> handleDelWarp(player, args, lang);
-            case "warp" -> handleWarp(player, args, lang);
-            case "warps" -> handleWarpsList(player, lang);
+            case "setwarp" -> {
+                if (args.length < 2) {
+                    player.sendMessage(lang.component("warp-setwarp-usage"));
+                    return true;
+                }
+                return WarpCommands.setWarp(player, args[1]);
+            }
+            case "delwarp" -> {
+                if (args.length < 2) {
+                    player.sendMessage(lang.component("warp-delwarp-usage"));
+                    return true;
+                }
+                return WarpCommands.deleteWarp(player, args[1]);
+            }
+            case "warp" -> {
+                if (args.length < 2) {
+                    player.sendMessage(lang.component("warp-usage"));
+                    return true;
+                }
+                return WarpCommands.warp(player, args[1]);
+            }
+            case "warps" -> WarpCommands.listWarps(player);
             case "outline" -> handleOutline(player, landManager, lang);
             case "fill" -> handleFill(player, chunk, landManager, lang);
             case "particles" -> handleParticles(player, lang);
@@ -300,77 +318,6 @@ public class ClaimCommand implements CommandExecutor {
             player.sendMessage(lang.componentRaw("info-flag-" + flag, "value", val));
         }
         player.sendMessage(lang.componentRaw("info-footer"));
-    }
-
-    private void handleSetWarp(Player player, String[] args, Chunk chunk, LandManager landManager, LangManager lang) {
-        if (args.length < 2) {
-            player.sendMessage(lang.component("warp-setwarp-usage"));
-            return;
-        }
-        Optional<Land> opt = landManager.getLandAt(chunk);
-        if (opt.isEmpty() || !opt.get().getOwner().equals(player.getUniqueId())) {
-            player.sendMessage(lang.component("warp-must-own"));
-            return;
-        }
-
-        WarpManager warpManager = BellLands.getInstance().getWarpManager();
-        int current = warpManager.getWarpCount(player.getUniqueId());
-        int max = warpManager.getMaxWarps(player);
-
-        String name = args[1].toLowerCase();
-        boolean isUpdate = warpManager.getWarp(player.getUniqueId(), name) != null;
-
-        if (!isUpdate && current >= max) {
-            player.sendMessage(lang.component("warp-limit-reached", "current", current, "max", max));
-            return;
-        }
-
-        warpManager.setWarp(player.getUniqueId(), name, player.getLocation());
-        player.sendMessage(lang.component("warp-set-success", "name", name));
-    }
-
-    private void handleDelWarp(Player player, String[] args, LangManager lang) {
-        if (args.length < 2) {
-            player.sendMessage(lang.component("warp-delwarp-usage"));
-            return;
-        }
-        WarpManager warpManager = BellLands.getInstance().getWarpManager();
-        String name = args[1].toLowerCase();
-        if (warpManager.deleteWarp(player.getUniqueId(), name)) {
-            player.sendMessage(lang.component("warp-deleted", "name", name));
-        } else {
-            player.sendMessage(lang.component("warp-not-found", "name", name));
-        }
-    }
-
-    private void handleWarp(Player player, String[] args, LangManager lang) {
-        if (args.length < 2) {
-            player.sendMessage(lang.component("warp-usage"));
-            return;
-        }
-        WarpManager warpManager = BellLands.getInstance().getWarpManager();
-        String name = args[1].toLowerCase();
-        Location loc = warpManager.getWarp(player.getUniqueId(), name);
-        if (loc == null) {
-            player.sendMessage(lang.component("warp-not-found", "name", name));
-            return;
-        }
-        player.teleport(loc);
-        player.sendMessage(lang.component("warp-teleported", "name", name));
-    }
-
-    private void handleWarpsList(Player player, LangManager lang) {
-        WarpManager warpManager = BellLands.getInstance().getWarpManager();
-        Set<String> names = warpManager.getWarpNames(player.getUniqueId());
-        if (names.isEmpty()) {
-            player.sendMessage(lang.component("warp-none"));
-            return;
-        }
-        int max = warpManager.getMaxWarps(player);
-        player.sendMessage(lang.componentRaw("warp-list-header", "count", names.size(), "max", max));
-        for (String name : names) {
-            player.sendMessage(lang.componentRaw("warp-list-entry", "name", name));
-        }
     }
 
     private void handleParticles(Player player, LangManager lang) {

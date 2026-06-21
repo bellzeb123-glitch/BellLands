@@ -166,6 +166,9 @@ public class LandManager {
     }
 
     public int getMaxClaims(org.bukkit.entity.Player player) {
+        Integer resolved = BellLands.resolveMaxClaims(player);
+        if (resolved != null) return resolved;
+
         int override = getClaimLimitOverride(player.getUniqueId());
         if (override > 0) return override;
 

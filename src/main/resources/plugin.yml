@@ -8,6 +8,7 @@ libraries:
   - org.xerial:sqlite-jdbc:3.46.0.0
 softdepend:
   - Pl3xMap
+  - LuckPerms
 
 commands:
   tpa:
@@ -30,6 +31,22 @@ commands:
   belllands:
     description: Zarzadzanie pluginem BellLands
     usage: /belllands [language <en|pl>|reload]
+  warp:
+    description: Skrot do warpów dzialki
+    usage: /warp <nazwa>
+    permission: belllands.claim
+  setwarp:
+    description: Ustaw warp dzialki
+    usage: /setwarp <nazwa>
+    permission: belllands.claim
+  delwarp:
+    description: Usun warp dzialki
+    usage: /delwarp <nazwa>
+    permission: belllands.claim
+  warps:
+    description: Lista warpów dzialki
+    usage: /warps
+    permission: belllands.claim
 
 permissions:
   belllands.*:

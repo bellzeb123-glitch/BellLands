@@ -9,6 +9,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -31,6 +33,21 @@ public class ClaimGuiListener implements Listener {
 
     public static void markOpen(UUID playerId, GuiType type) {
         openGuis.put(playerId, type);
+    }
+
+    public static void clearPlayerState(UUID playerId) {
+        openGuis.remove(playerId);
+        AdminGui.AdminGuiContext.clear(playerId);
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        clearPlayerState(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        clearPlayerState(event.getPlayer().getUniqueId());
     }
 
     // ── Addon hooks (used by BellLandsPro) ──
@@ -103,6 +120,14 @@ public class ClaimGuiListener implements Listener {
 
         GuiType type = openGuis.get(player.getUniqueId());
         if (type == null) return;
+
+        int topSize = event.getView().getTopInventory().getSize();
+        if (event.isShiftClick() && event.getClickedInventory() == event.getView().getBottomInventory()) {
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getRawSlot() < 0 || event.getRawSlot() >= topSize) return;
+        if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
         event.setCancelled(true);
 

@@ -42,6 +42,8 @@ import pl.bell.lands.model.Land;
 import pl.bell.lands.model.ClaimAction;
 import pl.bell.lands.manager.LandManager;
 
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
@@ -89,6 +91,43 @@ public class LandListener implements Listener {
             case ANIMALS -> land.getFlag("guest-animals");
             case FRAMES -> land.getFlag("guest-frames");
         };
+    }
+
+    private static final Set<Material> DOOR_BLOCKS;
+    private static final Set<Material> CONTAINER_BLOCKS;
+    private static final Set<Material> INTERACTIVE_BLOCKS;
+    static {
+        var doors = EnumSet.noneOf(Material.class);
+        var containers = EnumSet.noneOf(Material.class);
+        var interactive = EnumSet.noneOf(Material.class);
+        for (Material m : Material.values()) {
+            String name = m.name();
+            if (name.contains("DOOR") || name.contains("GATE") || name.contains("TRAPDOOR"))
+                doors.add(m);
+            if (name.contains("CHEST") || name.contains("SHULKER_BOX"))
+                containers.add(m);
+            if (name.contains("CHEST") || name.contains("SHULKER_BOX") ||
+                    name.contains("DOOR") || name.contains("GATE") || name.contains("TRAPDOOR") ||
+                    name.contains("BUTTON") || name.contains("PLATE") || name.contains("LEVER") ||
+                    name.contains("HOPPER") || name.contains("DISPENSER") || name.contains("DROPPER") ||
+                    name.contains("FURNACE") || name.contains("ANVIL") || name.contains("BEACON") ||
+                    name.contains("SIGN") || name.contains("BED") || name.contains("CAMPFIRE") ||
+                    name.contains("COMPOSTER") || name.contains("GRINDSTONE") || name.contains("LECTERN") ||
+                    name.contains("LOOM") || name.contains("STONECUTTER") || name.contains("CARTOGRAPHY") ||
+                    name.contains("SMITHING"))
+                interactive.add(m);
+        }
+        containers.add(Material.BARREL);
+        interactive.add(Material.BARREL);
+        interactive.add(Material.SMOKER);
+        interactive.add(Material.BREWING_STAND);
+        interactive.add(Material.ENCHANTING_TABLE);
+        interactive.add(Material.CRAFTING_TABLE);
+        interactive.add(Material.JUKEBOX);
+        interactive.add(Material.NOTE_BLOCK);
+        DOOR_BLOCKS = Collections.unmodifiableSet(doors);
+        CONTAINER_BLOCKS = Collections.unmodifiableSet(containers);
+        INTERACTIVE_BLOCKS = Collections.unmodifiableSet(interactive);
     }
 
     private static final Set<UUID> particlesDisabled = ConcurrentHashMap.newKeySet();
@@ -356,23 +395,55 @@ public class LandListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onEntityProtect(EntityDamageByEntityEvent event) {
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         Entity victim = event.getEntity();
-        ClaimAction action;
-        if (victim instanceof ItemFrame || victim instanceof Hanging || victim instanceof ArmorStand) {
-            action = ClaimAction.FRAMES;
-        } else if (isAnimalOrVehicle(victim)) {
-            action = ClaimAction.ANIMALS;
-        } else {
-            return; // players handled by PVP/mob handlers
+
+        // Entity protection (item frames, armor stands, animals, vehicles)
+        if (victim instanceof ItemFrame || victim instanceof Hanging || victim instanceof ArmorStand
+                || isAnimalOrVehicle(victim)) {
+            ClaimAction action = (victim instanceof ItemFrame || victim instanceof Hanging
+                    || victim instanceof ArmorStand) ? ClaimAction.FRAMES : ClaimAction.ANIMALS;
+            Player attacker = null;
+            if (event.getDamager() instanceof Player p) attacker = p;
+            else if (event.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player p) attacker = p;
+            if (attacker == null) return;
+            if (!isAllowed(attacker, victim.getLocation().getChunk(), action)) {
+                event.setCancelled(true);
+            }
+            return;
         }
 
-        Player attacker = null;
-        if (event.getDamager() instanceof Player p) attacker = p;
-        else if (event.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player p) attacker = p;
-        if (attacker == null) return;
+        // Player victim — PvP and mob damage
+        if (!(victim instanceof Player player)) return;
 
-        if (!isAllowed(attacker, victim.getLocation().getChunk(), action)) {
+        Player attacker = null;
+        if (event.getDamager() instanceof Player p) {
+            attacker = p;
+        } else if (event.getDamager() instanceof Projectile projectile && projectile.getShooter() instanceof Player p) {
+            attacker = p;
+        }
+
+        if (attacker != null) {
+            Chunk chunk = player.getLocation().getChunk();
+            LandManager landManager = BellLands.getInstance().getLandManager();
+            Optional<Land> opt = landManager.getLandAt(chunk);
+            if (opt.isPresent() && !opt.get().getFlag("pvp")) {
+                attacker.sendMessage(BellLands.getInstance().getLangManager()
+                    .component("protection-pvp-disabled"));
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        boolean isMobAttack = event.getDamager() instanceof Monster
+            || (event.getDamager() instanceof Projectile projectile
+                && projectile.getShooter() instanceof Monster);
+        if (!isMobAttack) return;
+
+        Chunk chunk = player.getLocation().getChunk();
+        LandManager landManager = BellLands.getInstance().getLandManager();
+        Optional<Land> opt = landManager.getLandAt(chunk);
+        if (opt.isPresent() && !opt.get().getFlag("mob-damage")) {
             event.setCancelled(true);
         }
     }
@@ -421,61 +492,12 @@ public class LandListener implements Listener {
             || entity instanceof Vehicle;
     }
 
-    private boolean isDoorBlock(Material material) {
-        String name = material.name();
-        return name.contains("DOOR") || name.contains("GATE") || name.contains("TRAPDOOR");
+    private static boolean isDoorBlock(Material material) {
+        return DOOR_BLOCKS.contains(material);
     }
 
-    private boolean isChestBlock(Material material) {
-        String name = material.name();
-        return name.contains("CHEST") || name.contains("SHULKER_BOX") || material == Material.BARREL;
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof Player defender)) return;
-
-        Player attacker = null;
-        if (event.getDamager() instanceof Player p) {
-            attacker = p;
-        } else if (event.getDamager() instanceof Projectile projectile && projectile.getShooter() instanceof Player p) {
-            attacker = p;
-        }
-
-        if (attacker == null) return;
-
-        Chunk chunk = defender.getLocation().getChunk();
-        LandManager landManager = BellLands.getInstance().getLandManager();
-        Optional<Land> opt = landManager.getLandAt(chunk);
-
-        if (opt.isPresent() && !opt.get().getFlag("pvp")) {
-            attacker.sendMessage(BellLands.getInstance().getLangManager()
-                .component("protection-pvp-disabled"));
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onMobDamagePlayer(EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-
-        boolean isMobAttack = false;
-        if (event.getDamager() instanceof Monster) {
-            isMobAttack = true;
-        } else if (event.getDamager() instanceof Projectile projectile
-                   && projectile.getShooter() instanceof Monster) {
-            isMobAttack = true;
-        }
-
-        if (!isMobAttack) return;
-
-        Chunk chunk = player.getLocation().getChunk();
-        LandManager landManager = BellLands.getInstance().getLandManager();
-        Optional<Land> opt = landManager.getLandAt(chunk);
-
-        if (opt.isPresent() && !opt.get().getFlag("mob-damage")) {
-            event.setCancelled(true);
-        }
+    private static boolean isChestBlock(Material material) {
+        return CONTAINER_BLOCKS.contains(material);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -559,7 +581,9 @@ public class LandListener implements Listener {
     public void onBlockFromTo(BlockFromToEvent event) {
         Block fromBlock = event.getBlock();
         Block toBlock = event.getToBlock();
+        Chunk fromChunk = fromBlock.getChunk();
         Chunk toChunk = toBlock.getChunk();
+        boolean sameChunk = fromChunk.getX() == toChunk.getX() && fromChunk.getZ() == toChunk.getZ();
 
         LandManager landManager = BellLands.getInstance().getLandManager();
         Material fromType = fromBlock.getType();
@@ -567,10 +591,13 @@ public class LandListener implements Listener {
         boolean isLava = fromType == Material.LAVA;
         boolean isWater = fromType == Material.WATER;
 
-        // Block outward flow from a protected claim (source check) so fluid placed
-        // at the edge of a claim cannot leak into the unclaimed direction.
+        Optional<Land> fromOpt = landManager.getLandAt(fromChunk);
+        Optional<Land> toOpt = sameChunk ? fromOpt : landManager.getLandAt(toChunk);
+
+        if (fromOpt.isEmpty() && toOpt.isEmpty()) return;
+
+        // Block outward flow from a protected claim (source check)
         if (isLava || isWater) {
-            Optional<Land> fromOpt = landManager.getLandAt(fromBlock.getChunk());
             if (fromOpt.isPresent()) {
                 Land fromLand = fromOpt.get();
                 if (isLava && !fromLand.getFlag("lava-flow")) { event.setCancelled(true); return; }
@@ -578,10 +605,9 @@ public class LandListener implements Listener {
             }
         }
 
-        Optional<Land> opt = landManager.getLandAt(toChunk);
-        if (opt.isEmpty()) return;
+        if (toOpt.isEmpty()) return;
 
-        Land toLand = opt.get();
+        Land toLand = toOpt.get();
 
         if (isLava && !toLand.getFlag("lava-flow")) {
             event.setCancelled(true);
@@ -594,13 +620,9 @@ public class LandListener implements Listener {
         }
 
         // Block fluid from foreign claims into this claim
-        if (!isLava && !isWater) {
-            Chunk fromChunk = fromBlock.getChunk();
-            if (fromChunk.getX() != toChunk.getX() || fromChunk.getZ() != toChunk.getZ()) {
-                Optional<Land> fromOpt = landManager.getLandAt(fromChunk);
-                if (fromOpt.isEmpty() || !fromOpt.get().getOwner().equals(toLand.getOwner())) {
-                    event.setCancelled(true);
-                }
+        if (!isLava && !isWater && !sameChunk) {
+            if (fromOpt.isEmpty() || !fromOpt.get().getOwner().equals(toLand.getOwner())) {
+                event.setCancelled(true);
             }
         }
     }
@@ -678,39 +700,7 @@ public class LandListener implements Listener {
         return !isAllowed(player, chunk, ClaimAction.BUILD);
     }
 
-    private boolean isProtectedInteractiveBlock(Material material) {
-        String name = material.name();
-        return name.contains("CHEST") ||
-               name.contains("SHULKER_BOX") ||
-               name.contains("DOOR") ||
-               name.contains("GATE") ||
-               name.contains("TRAPDOOR") ||
-               name.contains("BUTTON") ||
-               name.contains("PLATE") ||
-               name.contains("LEVER") ||
-               name.contains("HOPPER") ||
-               name.contains("DISPENSER") ||
-               name.contains("DROPPER") ||
-               name.contains("FURNACE") ||
-               name.contains("ANVIL") ||
-               name.contains("BEACON") ||
-               name.contains("SIGN") ||
-               name.contains("BED") ||
-               name.contains("CAMPFIRE") ||
-               name.contains("COMPOSTER") ||
-               name.contains("GRINDSTONE") ||
-               name.contains("LECTERN") ||
-               name.contains("LOOM") ||
-               name.contains("STONECUTTER") ||
-               name.contains("CARTOGRAPHY") ||
-               name.contains("SMITHING") ||
-               material == Material.BARREL ||
-               material == Material.BLAST_FURNACE ||
-               material == Material.SMOKER ||
-               material == Material.BREWING_STAND ||
-               material == Material.ENCHANTING_TABLE ||
-               material == Material.CRAFTING_TABLE ||
-               material == Material.JUKEBOX ||
-               material == Material.NOTE_BLOCK;
+    private static boolean isProtectedInteractiveBlock(Material material) {
+        return INTERACTIVE_BLOCKS.contains(material);
     }
 }

@@ -131,6 +131,7 @@ public final class BellLands extends JavaPlugin {
 
     private void printBanner() {
         var c = org.bukkit.Bukkit.getConsoleSender();
+        boolean proActive = org.bukkit.Bukkit.getPluginManager().getPlugin("BellLandsPro") != null;
         c.sendMessage("§r");
         c.sendMessage("§6  ██████╗ ███████╗██╗     ██╗          ");
         c.sendMessage("§6  ██╔══██╗██╔════╝██║     ██║          ");
@@ -140,7 +141,7 @@ public final class BellLands extends JavaPlugin {
         c.sendMessage("§6  ╚═════╝ ╚══════╝╚══════╝╚══════╝     ");
         c.sendMessage("§r");
         c.sendMessage("§7  Version §f" + getDescription().getVersion() + "  §7│  Author §bBellzeb");
-        c.sendMessage("§7  Status  §aFree §7│ §7Pro §5Addon");
+        c.sendMessage("§7  Status  §aFree §7│ " + (proActive ? "§5Pro §aActive" : "§7Pro §5Coming Soon"));
         c.sendMessage("§r");
     }
 }

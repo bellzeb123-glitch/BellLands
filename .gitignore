@@ -1,5 +1,6 @@
 # Maven
 target/
+bell-suite-api/target/
 
 # Build artifacts
 *.jar

@@ -21,6 +21,9 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
+    - name: Install bell-suite-api (local contract jar)
+      run: mvn -B -f bell-suite-api/pom.xml clean install
+
     - name: Budowanie pluginu przez Maven
       run: mvn -B package --file pom.xml
 

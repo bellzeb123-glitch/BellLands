@@ -69,6 +69,16 @@ public final class BellLands extends JavaPlugin {
 
         Pl3xMapHook.init();
 
+        // Integracja z panelem BellSuite (opcjonalna) — tylko gdy plugin obecny.
+        if (getServer().getPluginManager().getPlugin("BellSuite") != null) {
+            try {
+                pl.bell.lands.integration.BellSuiteModule.register(this, landManager, warpManager);
+                getLogger().info("Zintegrowano z panelem BellSuite.");
+            } catch (Throwable t) {
+                getLogger().warning("Integracja z BellSuite nieudana: " + t.getMessage());
+            }
+        }
+
         getLogger().info("BellLands zostal pomyslnie uruchomiony!");
     }
 

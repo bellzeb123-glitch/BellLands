@@ -20,7 +20,7 @@ import java.util.UUID;
 public final class ClaimZoneBuilder {
 
     public record Zone(UUID owner, String world, int chunkCount,
-                       double centerX, double centerZ, double[][] ring) {}
+                       double centerX, double centerZ, double[][] ring, int[][] chunks) {}
 
     private ClaimZoneBuilder() {}
 
@@ -63,25 +63,27 @@ public final class ClaimZoneBuilder {
     }
 
     private static Zone buildZone(UUID owner, String world, List<int[]> cellsList) {
-        Set<Long> set = new HashSet<>();
-        for (int[] c : cellsList) set.add(cell(c[0], c[1]));
-
-        // Krawedzie graniczne (gdzie sasiada brak), w koordynatach swiata (rogi chunkow = x16)
-        // Mapa punkt -> sasiednie punkty po krawedziach
-        Map<Long, List<long[]>> adj = new HashMap<>();
         double sumX = 0, sumZ = 0;
-        for (int[] c : cellsList) {
-            int x0 = c[0] << 4, z0 = c[1] << 4, x1 = x0 + 16, z1 = z0 + 16;
-            sumX += x0 + 8; sumZ += z0 + 8;
-            if (!set.contains(cell(c[0]-1, c[1]))) edge(adj, x0, z0, x0, z1); // zachod
-            if (!set.contains(cell(c[0]+1, c[1]))) edge(adj, x1, z0, x1, z1); // wschod
-            if (!set.contains(cell(c[0], c[1]-1))) edge(adj, x0, z0, x1, z0); // polnoc
-            if (!set.contains(cell(c[0], c[1]+1))) edge(adj, x0, z1, x1, z1); // poludnie
-        }
-
-        double[][] ring = traceLargestRing(adj);
+        for (int[] c : cellsList) { sumX += (c[0] << 4) + 8; sumZ += (c[1] << 4) + 8; }
+        double[][] ring = ringFor(cellsList.toArray(new int[0][]));
+        int[][] chunks = cellsList.toArray(new int[0][]);
         return new Zone(owner, world, cellsList.size(),
-                sumX / cellsList.size(), sumZ / cellsList.size(), ring);
+                sumX / cellsList.size(), sumZ / cellsList.size(), ring, chunks);
+    }
+
+    /** Obrys scalonej grupy chunków (np. dla nazwanej działki Pro). chunks = pary [chunkX,chunkZ]. */
+    public static double[][] ringFor(int[][] chunks) {
+        Set<Long> set = new HashSet<>();
+        for (int[] c : chunks) set.add(cell(c[0], c[1]));
+        Map<Long, List<long[]>> adj = new HashMap<>();
+        for (int[] c : chunks) {
+            int x0 = c[0] << 4, z0 = c[1] << 4, x1 = x0 + 16, z1 = z0 + 16;
+            if (!set.contains(cell(c[0]-1, c[1]))) edge(adj, x0, z0, x0, z1);
+            if (!set.contains(cell(c[0]+1, c[1]))) edge(adj, x1, z0, x1, z1);
+            if (!set.contains(cell(c[0], c[1]-1))) edge(adj, x0, z0, x1, z0);
+            if (!set.contains(cell(c[0], c[1]+1))) edge(adj, x0, z1, x1, z1);
+        }
+        return traceLargestRing(adj);
     }
 
     /** Sledzi krawedzie w pierscienie i zwraca najwiekszy (zewnetrzny obrys). */

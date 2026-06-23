@@ -9,7 +9,7 @@ libraries:
 softdepend:
   - Pl3xMap
   - LuckPerms
-  - BellSuite
+  - BellHub
 
 commands:
   tpa:

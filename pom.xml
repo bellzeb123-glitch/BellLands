@@ -57,7 +57,7 @@
         <!-- Kontrakt panelu BellSuite — provided: klasy dostarcza jar BellSuite w runtime (softdepend) -->
         <dependency>
             <groupId>pl.bell</groupId>
-            <artifactId>bell-suite-api</artifactId>
+            <artifactId>bell-hub-api</artifactId>
             <version>0.1.0</version>
             <scope>provided</scope>
         </dependency>

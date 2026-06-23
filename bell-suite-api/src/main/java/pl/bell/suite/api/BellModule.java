@@ -3,14 +3,14 @@ package pl.bell.suite.api;
 import java.util.List;
 
 /**
- * Kontrakt, ktory implementuje kazdy plugin Bell chcacy pojawic sie w panelu BellSuite.
+ * Kontrakt, ktory implementuje kazdy plugin Bell chcacy pojawic sie w panelu BellHub.
  *
  * <p>Rejestracja (w {@code onEnable} pluginu):
  * <pre>
  *   Bukkit.getServicesManager().register(BellModule.class, new MyModule(),
  *           this, org.bukkit.plugin.ServicePriority.Normal);
  * </pre>
- * BellSuite odkrywa wszystkie zarejestrowane moduly przez ServicesManager — zero
+ * BellHub odkrywa wszystkie zarejestrowane moduly przez ServicesManager — zero
  * twardych zaleznosci. Przyszly plugin = implementuje ten interfejs i juz jest w panelu.
  */
 public interface BellModule {
@@ -34,13 +34,13 @@ public interface BellModule {
 
     /**
      * Statystyki pokazywane na karcie modulu na pulpicie. Wywolywane na watku serwera
-     * (BellSuite zapewnia bezpieczny kontekst) — nie blokuj dlugo.
+     * (BellHub zapewnia bezpieczny kontekst) — nie blokuj dlugo.
      */
     List<Stat> dashboard();
 
     /**
      * Markery wnoszone na mape (claimy, warpy, domy, skrzynie itd.). Domyslnie brak.
-     * BellSuite filtruje wg {@link MapFilter} i laczy markery wszystkich modulow.
+     * BellHub filtruje wg {@link MapFilter} i laczy markery wszystkich modulow.
      */
     default List<MapMarker> markers(MapFilter filter) {
         return List.of();

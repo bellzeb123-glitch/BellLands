@@ -1,7 +1,7 @@
 package pl.bell.suite.api;
 
 /**
- * Zrodlo kafelkow terenu dla mapy panelu. BellSuite renderuje tylko nakladke Bell
+ * Zrodlo kafelkow terenu dla mapy panelu. BellHub renderuje tylko nakladke Bell
  * (markery); teren dostarcza zewnetrzny renderer. Pierwsza implementacja celuje w
  * Pl3xMap, ale interfejs zostawia miejsce na wlasny renderer kafelkow w przyszlosci.
  *
@@ -18,7 +18,7 @@ public interface TileProvider {
     /**
      * Szablon URL kafelka w formacie Leaflet, np.
      * {@code "http://host:8080/tiles/{world}/{zoom}/{x}_{y}.png"}.
-     * BellSuite/Leaflet podstawia {z}/{x}/{y}; {world} podstawia panel.
+     * BellHub/Leaflet podstawia {z}/{x}/{y}; {world} podstawia panel.
      */
     String tileUrlTemplate(String world);
 

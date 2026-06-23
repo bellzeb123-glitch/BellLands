@@ -7,14 +7,20 @@ import pl.bell.lands.BellLands;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.WarpManager;
 import pl.bell.lands.model.Land;
+import pl.bell.suite.api.ActionDef;
+import pl.bell.suite.api.ActionField;
+import pl.bell.suite.api.ActionResult;
+import pl.bell.suite.api.Actor;
 import pl.bell.suite.api.BellModule;
 import pl.bell.suite.api.MapFilter;
 import pl.bell.suite.api.MapMarker;
 import pl.bell.suite.api.Stat;
+import pl.bell.suite.api.SuiteAction;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,10 +32,12 @@ public final class BellSuiteModule implements BellModule {
 
     private final LandManager lands;
     private final WarpManager warps;
+    private final LandsAdmin admin;
 
     private BellSuiteModule(LandManager lands, WarpManager warps) {
         this.lands = lands;
         this.warps = warps;
+        this.admin = new LandsAdmin(lands, warps);
     }
 
     /** Rejestruje modul w ServicesManager — BellSuite odkryje go automatycznie. */
@@ -74,11 +82,18 @@ public final class BellSuiteModule implements BellModule {
                 if (z.ring().length < 3) continue;
                 String owner = ownerName(z.owner());
                 int idx = perOwner.merge(owner, 1, Integer::sum);
+                StringBuilder ck = new StringBuilder();
+                for (int[] c : z.chunks()) {
+                    if (ck.length() > 0) ck.append(';');
+                    ck.append(c[0]).append(',').append(c[1]);
+                }
                 out.add(new MapMarker("claims", "zone",
                         owner + " · strefa #" + idx, z.world(),
                         z.centerX(), 64, z.centerZ(), "#3FC9FF", z.ring(),
                         java.util.Map.of("owner", owner, "zone", owner + "#" + idx,
-                                "chunks", Integer.toString(z.chunkCount()))));
+                                "kind", "regular",
+                                "chunks", Integer.toString(z.chunkCount()),
+                                "chunkList", ck.toString())));
             }
         }
 
@@ -101,8 +116,39 @@ public final class BellSuiteModule implements BellModule {
         return out;
     }
 
+    // ── Zarzadzanie (admin) ─────────────────────────────────
+
+    @Override
+    public String view(String viewId, Map<String, String> params) {
+        return switch (viewId) {
+            case "player" -> admin.viewPlayer(params.get("player"));
+            case "settings" -> admin.viewSettings();
+            default -> "{}";
+        };
+    }
+
+    @Override
+    public ActionResult invoke(SuiteAction action, Actor actor) {
+        return admin.invoke(action, actor);
+    }
+
+    @Override
+    public List<ActionDef> actions() {
+        return List.of(
+                ActionDef.destructive("claim.deleteAll", "Usuń wszystkie działki gracza", "Działki",
+                        ActionField.player("owner", "Gracz")),
+                ActionDef.of("limit.set", "Ustaw limit claimów gracza", "Limity",
+                        ActionField.player("owner", "Gracz"), ActionField.number("value", "Limit")),
+                ActionDef.of("settings.particles", "Particle borders", "Ustawienia",
+                        ActionField.bool("value", "Włączone")),
+                ActionDef.of("settings.language", "Język", "Ustawienia",
+                        ActionField.select("value", "Język", List.of("pl", "en")))
+        );
+    }
+
     private String ownerName(UUID uuid) {
         String n = Bukkit.getOfflinePlayer(uuid).getName();
         return n != null ? n : uuid.toString().substring(0, 8);
     }
 }
+

@@ -5,15 +5,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>pl.bell</groupId>
-    <artifactId>bell-suite-api</artifactId>
+    <artifactId>bell-hub-api</artifactId>
     <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <!--
-      Wspoldzielony kontrakt panelu BellSuite. Kazdy plugin Bell, ktory chce
+      Wspoldzielony kontrakt panelu BellHub. Kazdy plugin Bell, ktory chce
       pojawic sie w panelu, kompiluje sie przeciw temu modulowi (scope provided)
-      i implementuje BellModule. Klasy API dostarcza w runtime jar BellSuite
-      (relacja softdepend: [BellSuite] w plugin.yml modulu).
+      i implementuje BellModule. Klasy API dostarcza w runtime jar BellHub
+      (relacja softdepend: [BellHub] w plugin.yml modulu).
     -->
 
     <properties>
@@ -39,7 +39,7 @@
     </dependencies>
 
     <build>
-        <finalName>bell-suite-api-${project.version}</finalName>
+        <finalName>bell-hub-api-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

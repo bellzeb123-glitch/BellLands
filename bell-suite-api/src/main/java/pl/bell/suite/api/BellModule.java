@@ -1,6 +1,7 @@
 package pl.bell.suite.api;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Kontrakt, ktory implementuje kazdy plugin Bell chcacy pojawic sie w panelu BellHub.
@@ -43,6 +44,19 @@ public interface BellModule {
      * BellHub filtruje wg {@link MapFilter} i laczy markery wszystkich modulow.
      */
     default List<MapMarker> markers(MapFilter filter) {
+        return List.of();
+    }
+
+    /**
+     * Widok szczegolowy modulu (JSON dla panelu), np. historia gracza lub ustawienia.
+     * {@code viewId} i {@code params} sa zdefiniowane przez modul.
+     */
+    default String view(String viewId, Map<String, String> params) {
+        return "{}";
+    }
+
+    /** Akcje administracyjne dostepne w panelu dla tego modulu. */
+    default List<ActionDef> actions() {
         return List.of();
     }
 

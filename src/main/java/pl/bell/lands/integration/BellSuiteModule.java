@@ -89,7 +89,7 @@ public final class BellSuiteModule implements BellModule {
                 }
                 out.add(new MapMarker("claims", "zone",
                         owner + " · strefa #" + idx, z.world(),
-                        z.centerX(), 64, z.centerZ(), "#3FC9FF", z.ring(),
+                        z.centerX(), 64, z.centerZ(), "#9B59B6", z.ring(),
                         java.util.Map.of("owner", owner, "zone", owner + "#" + idx,
                                 "kind", "regular",
                                 "chunks", Integer.toString(z.chunkCount()),

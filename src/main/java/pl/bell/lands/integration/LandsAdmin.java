@@ -82,7 +82,7 @@ public final class LandsAdmin {
         boolean particles = cfg.getBoolean("claims.particle-borders", true);
         String lang = cfg.getString("language", "en");
 
-        // wszystkie flagi (ochrony + gości)
+        // wszystkie flagi (ochrony + gości + home)
         List<String> all = new ArrayList<>();
         List<String> defaults = new ArrayList<>();
         for (String f : Land.ALL_FLAGS) {
@@ -94,11 +94,17 @@ public final class LandsAdmin {
             guest.add("\"" + esc(f) + "\"");
             defaults.add("\"" + esc(f) + "\":" + cfg.getBoolean("claims.default-flags." + f, false));
         }
+        List<String> home = new ArrayList<>();
+        for (String f : Land.HOME_FLAGS) {
+            home.add("\"" + esc(f) + "\"");
+            defaults.add("\"" + esc(f) + "\":" + cfg.getBoolean("claims.default-flags." + f, false));
+        }
         List<String> locked = new ArrayList<>();
         for (String f : cfg.getStringList("claims.locked-flags")) locked.add("\"" + esc(f) + "\"");
 
         return "{\"particles\":" + particles + ",\"language\":\"" + esc(lang) + "\","
-                + "\"flags\":" + arr(all) + ",\"guestFlags\":" + arr(guest) + ","
+                + "\"flags\":" + arr(all) + ",\"guestFlags\":" + arr(guest)
+                + ",\"homeFlags\":" + arr(home) + ","
                 + "\"defaults\":{" + String.join(",", defaults) + "},"
                 + "\"locked\":" + arr(locked) + "}";
     }

@@ -9,7 +9,7 @@ Darmowy plugin claim/land protection dla **Paper/Purpur 1.21.x** (Java 21).
 - Integracja Pl3xMap (opcjonalnie)
 - PL/EN z systemem MERGE
 
-> Wersja: **1.26.1.3** | Autor: Bellzeb
+> Wersja: **1.26.1.2** | Autor: Bellzeb
 
 ## Wymagania
 
@@ -24,7 +24,7 @@ Darmowy plugin claim/land protection dla **Paper/Purpur 1.21.x** (Java 21).
 mvn -f pom.xml clean package
 ```
 
-Wynik: `target/BellLands-1.26.1.3.jar`
+Wynik: `target/BellLands-1.26.1.2.jar`
 
 ## Instalacja
 

@@ -11,7 +11,7 @@ Kontynuujemy prace nad **BellLands** (+ **BellLandsPro**) — plugin claim/land 
 - Pro: `F:\Projekty\BellLandsPro`
 - Build Free: `& "C:\Users\user\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd" -f "F:\Projekty\BellLands\pom.xml" clean package -q`
 - Build Pro (wymaga zbudowanego Free): `& "C:\Users\user\.m2\wrapper\dists\apache-maven-3.9.9-bin\33b4b2b4\apache-maven-3.9.9\bin\mvn.cmd" -f "F:\Projekty\BellLandsPro\pom.xml" clean package -q`
-- Wersja: 1.26.1.3
+- Wersja: 1.26.1.2
 
 ## Stan projektu — GOTOWE (kod)
 ### BellLands Free

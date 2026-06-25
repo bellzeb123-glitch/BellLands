@@ -1,6 +1,6 @@
 # BellLands — Land Claiming & Teleportation Plugin
 
-**Version:** 1.26.1.3  
+**Version:** 1.26.1.2  
 **API:** Paper 1.21.4+  
 **Java:** 21+  
 **Author:** Bellzeb  
@@ -156,7 +156,7 @@ tpa:
 
 ## Installation
 
-1. Drop `BellLands-1.26.1.3.jar` into your server's `plugins/` folder
+1. Drop `BellLands-1.26.1.2.jar` into your server's `plugins/` folder
 2. Restart the server
 3. Edit `plugins/BellLands/config.yml` to your needs
 4. Customize language files in `plugins/BellLands/lang/` (optional)

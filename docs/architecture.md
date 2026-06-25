@@ -2,7 +2,7 @@
 
 ## Wersja
 
-`1.26.1.3` — wersja Free kompletna. Pro w osobnym repo `BellLandsPro`.
+`1.26.1.2` — wersja Free kompletna. Pro w osobnym repo `BellLandsPro`.
 
 ## Struktura pakietów
 

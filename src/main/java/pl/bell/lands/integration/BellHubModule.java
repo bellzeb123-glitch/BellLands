@@ -30,11 +30,13 @@ import java.util.UUID;
  */
 public final class BellHubModule implements BellModule {
 
+    private final BellLands plugin;
     private final LandManager lands;
     private final WarpManager warps;
     private final LandsAdmin admin;
 
-    private BellHubModule(LandManager lands, WarpManager warps) {
+    private BellHubModule(BellLands plugin, LandManager lands, WarpManager warps) {
+        this.plugin = plugin;
         this.lands = lands;
         this.warps = warps;
         this.admin = new LandsAdmin(lands, warps);
@@ -43,7 +45,7 @@ public final class BellHubModule implements BellModule {
     /** Rejestruje modul w ServicesManager — BellHub odkryje go automatycznie. */
     public static void register(BellLands plugin, LandManager lands, WarpManager warps) {
         Bukkit.getServicesManager().register(
-                BellModule.class, new BellHubModule(lands, warps), plugin, ServicePriority.Normal);
+                BellModule.class, new BellHubModule(plugin, lands, warps), plugin, ServicePriority.Normal);
     }
 
     @Override public String id() { return "belllands"; }
@@ -67,6 +69,8 @@ public final class BellHubModule implements BellModule {
         stats.add(new Stat("Claimy", Integer.toString(zones), "cyan"));
         stats.add(new Stat("Warpy", Integer.toString(warpCount), "violet"));
         stats.add(new Stat("Wlasciciele", Integer.toString(owners.size()), "gold"));
+        String lang = plugin.getConfig().getString("language", "en");
+        stats.add(new Stat("Język", lang.toUpperCase(), "silver"));
         return stats;
     }
 

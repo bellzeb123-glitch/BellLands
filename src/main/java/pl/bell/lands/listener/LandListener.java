@@ -17,15 +17,23 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.entity.PlayerLeashEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Creeper;
+import org.bukkit.entity.Explosive;
+import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Hanging;
+import org.bukkit.entity.Item;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.AbstractHorse;
 import org.bukkit.entity.Tameable;
@@ -129,6 +137,10 @@ public class LandListener implements Listener {
         CONTAINER_BLOCKS = Collections.unmodifiableSet(containers);
         INTERACTIVE_BLOCKS = Collections.unmodifiableSet(interactive);
     }
+
+    /** Solid blocks created when water and lava meet. */
+    private static final Set<Material> FLUID_FORM_BLOCKS = Collections.unmodifiableSet(
+        EnumSet.of(Material.OBSIDIAN, Material.COBBLESTONE, Material.STONE, Material.BASALT));
 
     private static final Set<UUID> particlesDisabled = ConcurrentHashMap.newKeySet();
 
@@ -329,7 +341,29 @@ public class LandListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
-        if (shouldCancelAction(player, event.getBlock().getChunk())) {
+        Chunk chunk = event.getBlock().getChunk();
+        if (shouldCancelAction(player, chunk)) {
+            player.sendMessage(BellLands.getInstance().getLangManager()
+                .component("protection-land-belongs"));
+            event.setCancelled(true);
+            return;
+        }
+        if (isFluidPlacementBlocked(event.getBlock().getType(), chunk)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        Player player = event.getPlayer();
+        Material bucket = event.getBucket();
+        if (bucket != Material.WATER_BUCKET && bucket != Material.LAVA_BUCKET) return;
+
+        Material fluid = bucket == Material.WATER_BUCKET ? Material.WATER : Material.LAVA;
+        Block target = event.getBlock();
+        Block clicked = event.getBlockClicked();
+
+        if (isBucketFluidDenied(player, fluid, target, clicked)) {
             player.sendMessage(BellLands.getInstance().getLangManager()
                 .component("protection-land-belongs"));
             event.setCancelled(true);
@@ -387,9 +421,25 @@ public class LandListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onHangingBreak(HangingBreakByEntityEvent event) {
-        if (!(event.getRemover() instanceof Player player)) return;
-        if (!isAllowed(player, event.getEntity().getLocation().getChunk(), ClaimAction.FRAMES)) {
+    public void onHangingBreak(HangingBreakEvent event) {
+        Chunk chunk = event.getEntity().getLocation().getChunk();
+
+        if (event instanceof HangingBreakByEntityEvent byEntity
+                && byEntity.getRemover() instanceof Player player) {
+            if (!isAllowed(player, chunk, ClaimAction.FRAMES)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        if (isExplosionBreak(event) && isExplosionBlocked(chunk)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if ((event.getCause() == HangingBreakEvent.RemoveCause.OBSTRUCTION
+                || event.getCause() == HangingBreakEvent.RemoveCause.PHYSICS)
+                && isLiquidInteractionBlocked(chunk)) {
             event.setCancelled(true);
         }
     }
@@ -453,6 +503,38 @@ public class LandListener implements Listener {
         if (!isAllowed(event.getPlayer(), event.getEntity().getLocation().getChunk(), ClaimAction.ANIMALS)) {
             event.setCancelled(true);
         }
+    }
+
+    /** Blocks fishing-rod hooking / reeling of protected entities (armor stands, frames, animals). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlayerFish(PlayerFishEvent event) {
+        Entity target = resolveFishingTarget(event);
+        if (target == null) return;
+
+        ClaimAction action = entityAction(target);
+        if (action == null) return;
+
+        Player player = event.getPlayer();
+        if (isAllowed(player, target.getLocation().getChunk(), action)) return;
+
+        FishHook hook = event.getHook();
+        if (hook != null) {
+            hook.setHookedEntity(null);
+        }
+        event.setCancelled(true);
+        player.sendMessage(BellLands.getInstance().getLangManager()
+            .component("protection-land-belongs"));
+    }
+
+    /** Hooked entity from a fish event, excluding caught fish items. */
+    private static Entity resolveFishingTarget(PlayerFishEvent event) {
+        Entity caught = event.getCaught();
+        if (caught != null) {
+            if (caught instanceof Item) return null;
+            return caught;
+        }
+        FishHook hook = event.getHook();
+        return hook != null ? hook.getHookedEntity() : null;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -524,11 +606,21 @@ public class LandListener implements Listener {
             return;
         }
 
-        Chunk chunk = event.getEntity().getLocation().getChunk();
+        Entity entity = event.getEntity();
+        Chunk chunk = entity.getLocation().getChunk();
         LandManager landManager = BellLands.getInstance().getLandManager();
         Optional<Land> opt = landManager.getLandAt(chunk);
+        if (opt.isEmpty()) return;
 
-        if (opt.isPresent() && !opt.get().getFlag("explosion-damage")) {
+        Land land = opt.get();
+        if (entity instanceof ArmorStand || entity instanceof ItemFrame || entity instanceof Hanging) {
+            if (!land.getFlag("explosions")) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        if (!land.getFlag("explosion-damage")) {
             event.setCancelled(true);
         }
     }
@@ -573,6 +665,14 @@ public class LandListener implements Listener {
         Optional<Land> opt = landManager.getLandAt(chunk);
 
         if (opt.isPresent() && !opt.get().getFlag("fire-spread")) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockForm(BlockFormEvent event) {
+        if (!FLUID_FORM_BLOCKS.contains(event.getNewState().getType())) return;
+        if (isLiquidInteractionBlocked(event.getBlock().getChunk())) {
             event.setCancelled(true);
         }
     }
@@ -694,6 +794,57 @@ public class LandListener implements Listener {
                 iterator.remove();
             }
         }
+    }
+
+    private boolean isExplosionBlocked(Chunk chunk) {
+        Optional<Land> opt = BellLands.getInstance().getLandManager().getLandAt(chunk);
+        return opt.isPresent() && !opt.get().getFlag("explosions");
+    }
+
+    private boolean isLiquidInteractionBlocked(Chunk chunk) {
+        Optional<Land> opt = BellLands.getInstance().getLandManager().getLandAt(chunk);
+        return opt.isPresent()
+                && (!opt.get().getFlag("water-flow") || !opt.get().getFlag("lava-flow"));
+    }
+
+    private boolean isBucketFluidDenied(Player player, Material fluid, Block target, Block clicked) {
+        if (isFluidDeniedAt(player, fluid, target.getChunk())) return true;
+        if (!target.getChunk().equals(clicked.getChunk())
+                && isFluidDeniedAt(player, fluid, clicked.getChunk())) {
+            return true;
+        }
+        return false;
+    }
+
+    /** Build permission + water/lava-flow flags for bucket placement. */
+    private boolean isFluidDeniedAt(Player player, Material fluid, Chunk chunk) {
+        if (BellLands.getInstance().getLandManager().hasBypass(player)) return false;
+        if (isFluidPlacementBlocked(fluid, chunk)) return true;
+        return shouldCancelAction(player, chunk);
+    }
+
+    private boolean isFluidPlacementBlocked(Material material, Chunk chunk) {
+        Optional<Land> opt = BellLands.getInstance().getLandManager().getLandAt(chunk);
+        if (opt.isEmpty()) return false;
+        Land land = opt.get();
+        if (material == Material.WATER) {
+            return !land.getFlag("water-flow");
+        }
+        if (material == Material.LAVA || material == Material.MAGMA_BLOCK) {
+            return !land.getFlag("lava-flow");
+        }
+        return false;
+    }
+
+    private static boolean isExplosionBreak(HangingBreakEvent event) {
+        if (event.getCause() == HangingBreakEvent.RemoveCause.EXPLOSION) {
+            return true;
+        }
+        if (event instanceof HangingBreakByEntityEvent byEntity) {
+            Entity remover = byEntity.getRemover();
+            return remover instanceof Creeper || remover instanceof TNTPrimed || remover instanceof Explosive;
+        }
+        return false;
     }
 
     private boolean shouldCancelAction(Player player, Chunk chunk) {

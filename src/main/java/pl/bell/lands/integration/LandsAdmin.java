@@ -7,9 +7,9 @@ import pl.bell.lands.BellLands;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.WarpManager;
 import pl.bell.lands.model.Land;
-import pl.bell.suite.api.ActionResult;
-import pl.bell.suite.api.Actor;
-import pl.bell.suite.api.SuiteAction;
+import pl.bell.hub.api.ActionResult;
+import pl.bell.hub.api.Actor;
+import pl.bell.hub.api.HubAction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Logika admina BellLands dla panelu BellSuite: widoki (strefy/warpy gracza, ustawienia globalne)
+ * Logika admina BellLands dla panelu BellHub: widoki (strefy/warpy gracza, ustawienia globalne)
  * + wykonanie akcji. Akcje wolaja DOKLADNIE te same managery co GUI w grze (unclaimLand, setFlag+
  * saveLand, addTrusted/removeTrusted) — zero duplikacji logiki.
  */
@@ -111,8 +111,8 @@ public final class LandsAdmin {
 
     // ── AKCJE ───────────────────────────────────────────────
 
-    public ActionResult invoke(SuiteAction a, Actor actor) {
-        if (!actor.admin() && !actor.has("bellsuite.module.belllands")) {
+    public ActionResult invoke(HubAction a, Actor actor) {
+        if (!actor.admin() && !actor.has("bellhub.module.belllands")) {
             return ActionResult.error("Brak uprawnien.");
         }
         try {

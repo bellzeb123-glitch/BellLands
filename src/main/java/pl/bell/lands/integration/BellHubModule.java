@@ -7,15 +7,15 @@ import pl.bell.lands.BellLands;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.WarpManager;
 import pl.bell.lands.model.Land;
-import pl.bell.suite.api.ActionDef;
-import pl.bell.suite.api.ActionField;
-import pl.bell.suite.api.ActionResult;
-import pl.bell.suite.api.Actor;
-import pl.bell.suite.api.BellModule;
-import pl.bell.suite.api.MapFilter;
-import pl.bell.suite.api.MapMarker;
-import pl.bell.suite.api.Stat;
-import pl.bell.suite.api.SuiteAction;
+import pl.bell.hub.api.ActionDef;
+import pl.bell.hub.api.ActionField;
+import pl.bell.hub.api.ActionResult;
+import pl.bell.hub.api.Actor;
+import pl.bell.hub.api.BellModule;
+import pl.bell.hub.api.MapFilter;
+import pl.bell.hub.api.MapMarker;
+import pl.bell.hub.api.Stat;
+import pl.bell.hub.api.HubAction;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,31 +25,31 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Most BellLands -> panel BellSuite. Tylko ODCZYT z istniejacych managerow — nie zmienia
- * logiki pluginu. Ladowany leniwie tylko gdy BellSuite jest obecny (klasy API z jara BellSuite).
+ * Most BellLands -> panel BellHub. Tylko ODCZYT z istniejacych managerow — nie zmienia
+ * logiki pluginu. Ladowany leniwie tylko gdy BellHub jest obecny (klasy API z jara BellHub).
  */
-public final class BellSuiteModule implements BellModule {
+public final class BellHubModule implements BellModule {
 
     private final LandManager lands;
     private final WarpManager warps;
     private final LandsAdmin admin;
 
-    private BellSuiteModule(LandManager lands, WarpManager warps) {
+    private BellHubModule(LandManager lands, WarpManager warps) {
         this.lands = lands;
         this.warps = warps;
         this.admin = new LandsAdmin(lands, warps);
     }
 
-    /** Rejestruje modul w ServicesManager — BellSuite odkryje go automatycznie. */
+    /** Rejestruje modul w ServicesManager — BellHub odkryje go automatycznie. */
     public static void register(BellLands plugin, LandManager lands, WarpManager warps) {
         Bukkit.getServicesManager().register(
-                BellModule.class, new BellSuiteModule(lands, warps), plugin, ServicePriority.Normal);
+                BellModule.class, new BellHubModule(lands, warps), plugin, ServicePriority.Normal);
     }
 
     @Override public String id() { return "belllands"; }
     @Override public String displayName() { return "BellLands"; }
     @Override public String icon() { return "map-pin"; }
-    @Override public String permission() { return "bellsuite.module.belllands"; }
+    @Override public String permission() { return "bellhub.module.belllands"; }
 
     @Override
     public List<Stat> dashboard() {
@@ -128,7 +128,7 @@ public final class BellSuiteModule implements BellModule {
     }
 
     @Override
-    public ActionResult invoke(SuiteAction action, Actor actor) {
+    public ActionResult invoke(HubAction action, Actor actor) {
         return admin.invoke(action, actor);
     }
 

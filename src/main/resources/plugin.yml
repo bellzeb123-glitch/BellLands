@@ -1,7 +1,7 @@
-name: BellLands
-version: '1.26.1.2'
+﻿name: BellLands
+version: '1.26.2.0'
 main: pl.bell.lands.BellLands
-api-version: '1.21'
+api-version: '26.2'
 description: System claimow i teleportacji dla serwerow Minecraft
 author: Bellzeb
 libraries:

@@ -34,6 +34,8 @@ public class ClaimGui {
             lang.getRaw("gui-info-owner", "owner", ownerName),
             lang.getRaw("gui-info-chunk", "x", land.getChunkX(), "z", land.getChunkZ()),
             lang.getRaw("gui-info-world", "world", land.getWorldName()),
+            lang.getRaw("gui-info-dimension",
+                "dimension", pl.bell.lands.util.WorldKind.labelColored(land.getWorldName())),
             lang.getRaw("gui-info-trusted-count", "count", land.getTrusted().size())
         ));
 

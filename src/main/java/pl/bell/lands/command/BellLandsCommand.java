@@ -6,6 +6,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import pl.bell.lands.BellLands;
 import pl.bell.lands.config.LangManager;
+import pl.bell.lands.integration.Pl3xMapHook;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +22,7 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
                 "version", BellLands.getInstance().getDescription().getVersion()));
             sender.sendMessage(lang.componentRaw("belllands-help-language"));
             sender.sendMessage(lang.componentRaw("belllands-help-reload"));
+            sender.sendMessage(lang.componentRaw("belllands-help-cleanup"));
             return true;
         }
 
@@ -31,6 +33,24 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
             }
             BellLands.getInstance().reload();
             sender.sendMessage(lang.component("reload-success"));
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("cleanup-duplicates")) {
+            if (!sender.hasPermission("belllands.admin")) {
+                sender.sendMessage(lang.component("reload-no-permission"));
+                return true;
+            }
+            boolean confirm = args.length >= 2 && args[1].equalsIgnoreCase("confirm");
+            var lm = BellLands.getInstance().getLandManager();
+            if (!confirm) {
+                int n = lm.cleanupCrossWorldDuplicates(true);
+                sender.sendMessage(lang.component("cleanup-duplicates-preview", "count", n));
+                return true;
+            }
+            int n = lm.cleanupCrossWorldDuplicates(false);
+            Pl3xMapHook.drawAll();
+            sender.sendMessage(lang.component("cleanup-duplicates-done", "count", n));
             return true;
         }
 
@@ -62,6 +82,7 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
             "version", BellLands.getInstance().getDescription().getVersion()));
         sender.sendMessage(lang.componentRaw("belllands-help-language"));
         sender.sendMessage(lang.componentRaw("belllands-help-reload"));
+        sender.sendMessage(lang.componentRaw("belllands-help-cleanup"));
         return true;
     }
 
@@ -72,6 +93,7 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("belllands.admin")) {
                 options.add("language");
                 options.add("reload");
+                options.add("cleanup-duplicates");
             }
             return filter(options, args[0]);
         }
@@ -80,6 +102,12 @@ public class BellLandsCommand implements CommandExecutor, TabCompleter {
                 return List.of();
             }
             return filter(List.of("en", "pl"), args[1]);
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("cleanup-duplicates")) {
+            if (!sender.hasPermission("belllands.admin")) {
+                return List.of();
+            }
+            return filter(List.of("confirm"), args[1]);
         }
         return List.of();
     }

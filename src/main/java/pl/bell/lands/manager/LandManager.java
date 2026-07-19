@@ -25,6 +25,8 @@ public class LandManager {
     private final Set<UUID> autoUnclaimPlayers = ConcurrentHashMap.newKeySet();
     private final Map<UUID, int[]> outlineCorner1 = new HashMap<>();
     private final Map<UUID, int[]> outlineCorner2 = new HashMap<>();
+    /** Świat, w którym rozpoczęto outline — fill/cząsteczki tylko tu. */
+    private final Map<UUID, String> outlineWorld = new HashMap<>();
     private final Set<UUID> outlinePlayers = ConcurrentHashMap.newKeySet();
     private Database db;
     private File limitsFile;
@@ -227,28 +229,38 @@ public class LandManager {
     public void removeAutoModes(UUID player) {
         autoClaimPlayers.remove(player);
         autoUnclaimPlayers.remove(player);
-        outlinePlayers.remove(player);
+        clearOutline(player);
     }
 
     // ── Outline mode ────────────────────────────────────────
     public boolean toggleOutline(UUID player) {
         if (outlinePlayers.contains(player)) {
-            outlinePlayers.remove(player);
-            outlineCorner1.remove(player);
-            outlineCorner2.remove(player);
+            clearOutline(player);
             return false;
         }
         autoClaimPlayers.remove(player);
         autoUnclaimPlayers.remove(player);
-        outlineCorner1.remove(player);
-        outlineCorner2.remove(player);
+        clearOutline(player);
         outlinePlayers.add(player);
         return true;
     }
 
     public boolean isOutlining(UUID player) { return outlinePlayers.contains(player); }
 
-    public void updateOutline(UUID player, int chunkX, int chunkZ) {
+    /**
+     * Rozszerza zaznaczenie outline. {@code world} musi być stały — zmiana świata czyści outline.
+     */
+    public void updateOutline(UUID player, String world, int chunkX, int chunkZ) {
+        if (world == null || world.isBlank()) return;
+        String existing = outlineWorld.get(player);
+        if (existing != null && !existing.equals(world)) {
+            // Gracz zmienił wymiar — nie mieszaj koordów między światami
+            outlineCorner1.remove(player);
+            outlineCorner2.remove(player);
+            outlineWorld.put(player, world);
+        } else if (existing == null) {
+            outlineWorld.put(player, world);
+        }
         if (!outlineCorner1.containsKey(player)) {
             outlineCorner1.put(player, new int[]{chunkX, chunkZ});
             outlineCorner2.put(player, new int[]{chunkX, chunkZ});
@@ -262,8 +274,15 @@ public class LandManager {
         }
     }
 
+    /** @deprecated use {@link #updateOutline(UUID, String, int, int)} */
+    @Deprecated
+    public void updateOutline(UUID player, int chunkX, int chunkZ) {
+        updateOutline(player, outlineWorld.getOrDefault(player, ""), chunkX, chunkZ);
+    }
+
     public int[] getOutlineCorner1(UUID player) { return outlineCorner1.get(player); }
     public int[] getOutlineCorner2(UUID player) { return outlineCorner2.get(player); }
+    public String getOutlineWorld(UUID player) { return outlineWorld.get(player); }
 
     public int getOutlineChunkCount(UUID player) {
         int[] c1 = outlineCorner1.get(player);
@@ -276,10 +295,42 @@ public class LandManager {
         outlinePlayers.remove(player);
         outlineCorner1.remove(player);
         outlineCorner2.remove(player);
+        outlineWorld.remove(player);
     }
 
     public Optional<Land> getLandAt(String world, int chunkX, int chunkZ) {
-        return Optional.ofNullable(claimedLands.get(generateKey(world, chunkX, chunkZ)));
+        if (world == null) return Optional.empty();
+        Land land = claimedLands.get(generateKey(world, chunkX, chunkZ));
+        if (land == null) return Optional.empty();
+        // Ochrona przed uszkodzonymi kluczami DB (chunk_key ≠ world+x+z)
+        if (!world.equals(land.getWorldName())) {
+            BellLands.getInstance().getLogger().warning(
+                "[Claims] Klucz/świat niespójny: lookup=" + world
+                    + " land.world=" + land.getWorldName()
+                    + " @" + chunkX + "," + chunkZ + " — ignoruję.");
+            return Optional.empty();
+        }
+        return Optional.of(land);
+    }
+
+    /**
+     * Czy w tym świecie wolno claimować.
+     * {@code claims.disabled-worlds} ma pierwszeństwo; {@code claims.worlds} = whitelist (pusta = wszystkie).
+     * End i Nether są dozwolone domyślnie.
+     */
+    public boolean isClaimWorldAllowed(String worldName) {
+        if (worldName == null || worldName.isBlank()) return false;
+        var cfg = BellLands.getInstance().getConfig();
+        java.util.List<String> disabled = cfg.getStringList("claims.disabled-worlds");
+        for (String d : disabled) {
+            if (worldName.equalsIgnoreCase(d)) return false;
+        }
+        java.util.List<String> allowed = cfg.getStringList("claims.worlds");
+        if (allowed == null || allowed.isEmpty()) return true;
+        for (String a : allowed) {
+            if (worldName.equalsIgnoreCase(a)) return true;
+        }
+        return false;
     }
 
     private String generateKey(String world, int x, int z) {
@@ -354,6 +405,7 @@ public class LandManager {
     private void loadAll() {
         claimedLands.clear();
         claimCounts.clear();
+        int repaired = 0;
 
         try (Statement st = db.conn().createStatement();
              ResultSet rs = st.executeQuery("SELECT chunk_key, owner, world, x, z, flags, trusted FROM claims")) {
@@ -369,20 +421,115 @@ public class LandManager {
                     continue;
                 }
 
-                Land land = new Land(owner, world, rs.getInt("x"), rs.getInt("z"));
+                int x = rs.getInt("x");
+                int z = rs.getInt("z");
+                String expectedKey = generateKey(world, x, z);
+                String storedKey = rs.getString("chunk_key");
+
+                Land land = new Land(owner, world, x, z);
                 applyFlags(land, rs.getString("flags"));
                 applyTrusted(land, rs.getString("trusted"));
 
-                claimedLands.put(rs.getString("chunk_key"), land);
+                // Zawsze klucz z world+x+z — nie ufaj raw chunk_key (mogło być bez świata)
+                claimedLands.put(expectedKey, land);
                 claimCounts.merge(owner, 1, Integer::sum);
+
+                if (storedKey == null || !storedKey.equals(expectedKey)) {
+                    repaired++;
+                    final String bad = storedKey;
+                    final String good = expectedKey;
+                    final String o = ownerStr;
+                    final String w = world;
+                    final String flags = rs.getString("flags");
+                    final String trusted = rs.getString("trusted");
+                    db.async(() -> {
+                        try {
+                            if (bad != null && !bad.equals(good)) {
+                                try (PreparedStatement del = db.conn().prepareStatement(
+                                        "DELETE FROM claims WHERE chunk_key = ?")) {
+                                    del.setString(1, bad);
+                                    del.executeUpdate();
+                                }
+                            }
+                            try (PreparedStatement ps = db.conn().prepareStatement(UPSERT_SQL)) {
+                                ps.setString(1, good);
+                                ps.setString(2, o);
+                                ps.setString(3, w);
+                                ps.setInt(4, x);
+                                ps.setInt(5, z);
+                                ps.setString(6, flags != null ? flags : "");
+                                ps.setString(7, trusted != null ? trusted : "");
+                                ps.executeUpdate();
+                            }
+                        } catch (SQLException e) {
+                            BellLands.getInstance().getLogger().log(Level.SEVERE,
+                                "Failed to repair claim key " + bad + " -> " + good, e);
+                        }
+                    });
+                }
             }
         } catch (SQLException e) {
             BellLands.getInstance().getLogger().log(Level.SEVERE, "Failed to load claims", e);
         }
 
+        if (repaired > 0) {
+            BellLands.getInstance().getLogger().warning(
+                "[Claims] Naprawiono " + repaired + " niespójnych kluczy chunk_key (świat+koordy).");
+        }
+
         if (claimedLands.isEmpty()) {
             importLegacyYaml();
         }
+
+        if (BellLands.getInstance().getConfig().getBoolean("claims.cleanup-crossworld-duplicates", false)) {
+            int removed = cleanupCrossWorldDuplicates(false);
+            if (removed > 0) {
+                BellLands.getInstance().getLogger().warning(
+                    "[Claims] Usunięto " + removed
+                        + " starych duplikatów (Nether/End = kopia overworld). "
+                        + "Nowe claimy w End/Nether na tych samych X/Z są dozwolone.");
+                pl.bell.lands.integration.Pl3xMapHook.drawAll();
+            }
+        }
+    }
+
+    /**
+     * Usuwa claimy w {@code *_nether} / {@code *_the_end}, gdy ten sam właściciel
+     * ma już claim na tych samych chunk X/Z w overworldzie (sibling bez sufiksu).
+     * Typowy ślad buga outline bez świata.
+     * <p>
+     * Nie blokuje samodzielnych claimów w End/Nether — tylko kasuje duplikaty względem overworld.
+     *
+     * @param dryRun gdy true - tylko zlicza, nic nie kasuje
+     * @return liczba usunietych (lub wykrytych przy dryRun)
+     */
+    public int cleanupCrossWorldDuplicates(boolean dryRun) {
+        List<Land> toRemove = new ArrayList<>();
+        for (Land land : claimedLands.values()) {
+            String sibling = overworldSiblingOf(land.getWorldName());
+            if (sibling == null) continue;
+            Optional<Land> over = getLandAt(sibling, land.getChunkX(), land.getChunkZ());
+            if (over.isEmpty()) continue;
+            if (!over.get().getOwner().equals(land.getOwner())) continue;
+            toRemove.add(land);
+        }
+        if (dryRun) return toRemove.size();
+        for (Land land : toRemove) {
+            unclaimLand(land.getWorldName(), land.getChunkX(), land.getChunkZ());
+        }
+        return toRemove.size();
+    }
+
+    /** {@code world_the_end} → {@code world}; {@code world_nether} → {@code world}; inaczej null. */
+    private static String overworldSiblingOf(String world) {
+        if (world == null) return null;
+        if (world.endsWith("_the_end")) {
+            return world.substring(0, world.length() - "_the_end".length());
+        }
+        if (world.endsWith("_nether")) {
+            return world.substring(0, world.length() - "_nether".length());
+        }
+        return null;
     }
 
     /** One-time import of an existing lands.yml (e.g. after upgrade or LCP migration) into the DB. */

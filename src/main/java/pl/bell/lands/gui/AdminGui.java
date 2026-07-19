@@ -98,8 +98,11 @@ public class AdminGui {
         for (int i = 0; i < Math.min(zones.size(), 9); i++) {
             List<Land> zone = zones.get(i);
             int[] bounds = getZoneBounds(zone);
+            String dim = zone.isEmpty() ? "?"
+                : pl.bell.lands.util.WorldKind.labelColored(zone.get(0).getWorldName());
             inv.setItem(i, ClaimGui.item(Material.FILLED_MAP,
                 lang.getRaw("admin-zone", "id", i + 1, "count", zone.size()),
+                lang.getRaw("gui-info-dimension", "dimension", dim),
                 "&7" + bounds[0] + "," + bounds[1] + " -> " + bounds[2] + "," + bounds[3],
                 lang.getRaw("admin-zone-click"),
                 lang.getRaw("admin-zone-shift-delete")
@@ -112,6 +115,8 @@ public class AdminGui {
             if (slot > 52) break;
             inv.setItem(slot++, ClaimGui.item(Material.GRASS_BLOCK,
                 "&a" + land.getWorldName() + " &7[" + land.getChunkX() + ", " + land.getChunkZ() + "]",
+                lang.getRaw("gui-info-dimension",
+                    "dimension", pl.bell.lands.util.WorldKind.labelColored(land.getWorldName())),
                 lang.getRaw("admin-claim-trusted", "count", land.getTrusted().size()),
                 lang.getRaw("admin-claim-click-manage"),
                 lang.getRaw("admin-claim-shift-delete")
@@ -150,7 +155,9 @@ public class AdminGui {
             lang.getRaw("gui-info-name"),
             lang.getRaw("gui-info-owner", "owner", ownerName),
             lang.getRaw("gui-info-chunk", "x", land.getChunkX(), "z", land.getChunkZ()),
-            lang.getRaw("gui-info-world", "world", land.getWorldName())
+            lang.getRaw("gui-info-world", "world", land.getWorldName()),
+            lang.getRaw("gui-info-dimension",
+                "dimension", pl.bell.lands.util.WorldKind.labelColored(land.getWorldName()))
         ));
 
         // Row 1-2: all flags (protection + guest)

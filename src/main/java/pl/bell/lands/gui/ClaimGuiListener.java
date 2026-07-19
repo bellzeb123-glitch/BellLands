@@ -458,15 +458,20 @@ public class ClaimGuiListener implements Listener {
                 player.sendMessage(lang.component("unclaim-success"));
             }
         } else {
-            int current = landManager.getClaimCount(player.getUniqueId());
-            int max = landManager.getMaxClaims(player);
-            if (current >= max) {
-                player.sendMessage(lang.component("claim-limit-reached", "current", current, "max", max));
+            String worldName = player.getWorld().getName();
+            if (!landManager.isClaimWorldAllowed(worldName)) {
+                player.sendMessage(lang.component("claim-world-disabled", "world", worldName));
             } else {
-                Land land = new Land(player.getUniqueId(), player.getWorld().getName(), cx, cz);
-                landManager.claimLand(land);
-                Pl3xMapHook.drawLand(land);
-                player.sendMessage(lang.component("claim-success", "x", cx, "z", cz));
+                int current = landManager.getClaimCount(player.getUniqueId());
+                int max = landManager.getMaxClaims(player);
+                if (current >= max) {
+                    player.sendMessage(lang.component("claim-limit-reached", "current", current, "max", max));
+                } else {
+                    Land land = new Land(player.getUniqueId(), worldName, cx, cz);
+                    landManager.claimLand(land);
+                    Pl3xMapHook.drawLand(land);
+                    player.sendMessage(lang.component("claim-success", "x", cx, "z", cz));
+                }
             }
         }
 

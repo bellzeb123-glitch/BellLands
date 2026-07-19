@@ -24,6 +24,11 @@ commands:
     description: Odrzucenie teleportacji
     usage: /tpdeny
     permission: belllands.tpa
+  tpr:
+    description: Teleportacja w losowe miejsce
+    usage: /tpr
+    aliases: [rtp, randomtp]
+    permission: belllands.tpr
   claim:
     description: Zajmij teren na ktorym stoisz
     usage: /claim [unclaim|trust|untrust|flag|flags|info|menu|help]
@@ -56,6 +61,7 @@ permissions:
     children:
       belllands.claim: true
       belllands.tpa: true
+      belllands.tpr: true
       belllands.admin: true
   belllands.claim:
     description: Pozwala na zajmowanie terenu i zarzadzanie dzialkami
@@ -63,6 +69,12 @@ permissions:
   belllands.tpa:
     description: Pozwala na korzystanie z teleportacji TPA
     default: true
+  belllands.tpr:
+    description: Pozwala na losowa teleportacje (/tpr)
+    default: true
+  belllands.tpr.bypass:
+    description: Omija cooldown /tpr
+    default: op
   belllands.admin:
     description: Uprawnienia administracyjne (usuwanie cudzych claimow itp.)
     default: op

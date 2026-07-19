@@ -7,6 +7,7 @@ import pl.bell.lands.BellLands;
 import pl.bell.lands.manager.LandManager;
 import pl.bell.lands.manager.WarpManager;
 import pl.bell.lands.model.Land;
+import pl.bell.lands.util.WorldKind;
 import pl.bell.hub.api.ActionResult;
 import pl.bell.hub.api.Actor;
 import pl.bell.hub.api.HubAction;
@@ -46,6 +47,8 @@ public final class LandsAdmin {
             Land first = lands.getLandAt(z.world(), z.chunks()[0][0], z.chunks()[0][1]).orElse(null);
             zoneJson.add("{"
                     + "\"world\":\"" + esc(z.world()) + "\","
+                    + "\"dimension\":\"" + esc(WorldKind.labelPlain(z.world())) + "\","
+                    + "\"dimensionKey\":\"" + WorldKind.labelKey(z.world()) + "\","
                     + "\"chunkCount\":" + z.chunkCount() + ","
                     + "\"centerX\":" + (long) z.centerX() + ",\"centerZ\":" + (long) z.centerZ() + ","
                     + "\"chunks\":\"" + chunksCsv(z.chunks()) + "\","

@@ -48,6 +48,11 @@ public class ClaimCommand implements CommandExecutor {
                 player.sendMessage(lang.component("no-permission"));
                 return true;
             }
+            if (!landManager.isClaimWorldAllowed(chunk.getWorld().getName())) {
+                player.sendMessage(lang.component("claim-world-disabled",
+                    "world", chunk.getWorld().getName()));
+                return true;
+            }
             if (landManager.isClaimed(chunk)) {
                 player.sendMessage(lang.component("claim-already-claimed"));
                 return true;
@@ -308,6 +313,8 @@ public class ClaimCommand implements CommandExecutor {
         player.sendMessage(lang.componentRaw("info-owner", "owner", ownerName));
         player.sendMessage(lang.componentRaw("info-chunk", "x", land.getChunkX(), "z", land.getChunkZ()));
         player.sendMessage(lang.componentRaw("info-world", "world", land.getWorldName()));
+        player.sendMessage(lang.componentRaw("info-dimension",
+            "dimension", pl.bell.lands.util.WorldKind.labelColored(land.getWorldName())));
         player.sendMessage(lang.componentRaw("info-trusted", "trusted", trustedNames));
         player.sendMessage(lang.componentRaw(""));
 
@@ -351,7 +358,20 @@ public class ClaimCommand implements CommandExecutor {
             return;
         }
 
+        String outlineWorld = landManager.getOutlineWorld(player.getUniqueId());
         String worldName = player.getWorld().getName();
+        if (outlineWorld == null || !outlineWorld.equals(worldName)) {
+            player.sendMessage(lang.component("outline-wrong-world",
+                "world", outlineWorld != null ? outlineWorld : "?"));
+            landManager.clearOutline(player.getUniqueId());
+            return;
+        }
+        if (!landManager.isClaimWorldAllowed(worldName)) {
+            player.sendMessage(lang.component("claim-world-disabled", "world", worldName));
+            landManager.clearOutline(player.getUniqueId());
+            return;
+        }
+
         int needed = 0;
         for (int x = c1[0]; x <= c2[0]; x++) {
             for (int z = c1[1]; z <= c2[1]; z++) {

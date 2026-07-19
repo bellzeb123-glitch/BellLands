@@ -33,6 +33,34 @@ claims:
 
   particle-borders: true
 
+  # End i Nether: claimowanie dozwolone. Te same X/Z w innym wymiarze =
+  # osobny claim (liczy się do limitu). Nie dodawaj end/nether do disabled.
+  worlds: []
+  disabled-worlds: []
+
+  # JEDNORAZOWE czyszczenie starych bugowych kopii (outline bez świata).
+  # true tylko na 1 restart po migracji, potem zostaw false —
+  # inaczej kasowałoby legalne claimy End/Nether na tych samych X/Z.
+  cleanup-crossworld-duplicates: false
+
 tpa:
   timeout-seconds: 60
   cooldown-seconds: 30
+
+# Random teleport (/tpr, /rtp)
+tpr:
+  enabled: true
+  cooldown-seconds: 60
+  max-attempts: 16
+  # Radius from center (world spawn by default)
+  min-radius: 100
+  max-radius: 5000
+  use-world-spawn-as-center: true
+  center-x: 0
+  center-z: 0
+  # Skip claimed chunks
+  avoid-claims: true
+  min-y: 40
+  max-y: 320
+  # Empty = all worlds; otherwise only listed world names
+  worlds: []

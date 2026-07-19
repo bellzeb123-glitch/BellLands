@@ -92,10 +92,12 @@ public final class BellHubModule implements BellModule {
                     ck.append(c[0]).append(',').append(c[1]);
                 }
                 out.add(new MapMarker("claims", "zone",
-                        owner + " · strefa #" + idx, z.world(),
-                        z.centerX(), 64, z.centerZ(), "#9B59B6", z.ring(),
+                        owner + " · " + pl.bell.lands.util.WorldKind.labelPlain(z.world())
+                            + " · strefa #" + idx, z.world(),
+                        z.centerX(), 64, z.centerZ(), claimCssColor(z), z.ring(),
                         java.util.Map.of("owner", owner, "zone", owner + "#" + idx,
                                 "kind", "regular",
+                                "dimension", pl.bell.lands.util.WorldKind.labelPlain(z.world()),
                                 "chunks", Integer.toString(z.chunkCount()),
                                 "chunkList", ck.toString())));
             }
@@ -153,6 +155,29 @@ public final class BellHubModule implements BellModule {
     private String ownerName(UUID uuid) {
         String n = Bukkit.getOfflinePlayer(uuid).getName();
         return n != null ? n : uuid.toString().substring(0, 8);
+    }
+
+    /**
+     * Kolor jak na Pl3xMap: z BellLandsPro (ProFlags / ClaimMapColors),
+     * inaczej fiolet Free ({@code #9B59B6}).
+     */
+    private String claimCssColor(ClaimZoneBuilder.Zone z) {
+        if (Bukkit.getPluginManager().getPlugin("BellLandsPro") == null) {
+            return "#9B59B6";
+        }
+        try {
+            Map<String, Boolean> flags = null;
+            if (z.chunks() != null && z.chunks().length > 0) {
+                int[] c0 = z.chunks()[0];
+                var land = lands.getLandAt(z.world(), c0[0], c0[1]);
+                if (land.isPresent()) flags = land.get().getFlags();
+            }
+            Class<?> colors = Class.forName("pl.bell.lands.pro.map.ClaimMapColors");
+            Object css = colors.getMethod("resolveCss", UUID.class, Map.class)
+                    .invoke(null, z.owner(), flags);
+            if (css != null) return String.valueOf(css);
+        } catch (Throwable ignored) {}
+        return "#9B59B6";
     }
 }
 

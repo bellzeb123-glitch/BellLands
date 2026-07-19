@@ -22,6 +22,7 @@ import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.entity.PlayerLeashEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.vehicle.VehicleEnterEvent;
@@ -223,6 +224,9 @@ public class LandListener implements Listener {
                 int[] c2 = landManager.getOutlineCorner2(player.getUniqueId());
                 if (c1 == null || c2 == null) continue;
 
+                String outlineWorld = landManager.getOutlineWorld(player.getUniqueId());
+                if (outlineWorld == null || !outlineWorld.equals(player.getWorld().getName())) continue;
+
                 World world = player.getWorld();
                 double py = player.getLocation().getY();
 
@@ -285,7 +289,9 @@ public class LandListener implements Listener {
         Chunk chunk = event.getTo().getChunk();
 
         if (landManager.isAutoClaiming(player.getUniqueId())) {
-            if (!landManager.isClaimed(chunk)) {
+            if (!landManager.isClaimWorldAllowed(chunk.getWorld().getName())) {
+                // świat wyłączony — nie claimuj
+            } else if (!landManager.isClaimed(chunk)) {
                 int current = landManager.getClaimCount(player.getUniqueId());
                 int max = landManager.getMaxClaims(player);
                 if (current >= max) {
@@ -302,7 +308,7 @@ public class LandListener implements Listener {
         }
 
         if (landManager.isOutlining(player.getUniqueId())) {
-            landManager.updateOutline(player.getUniqueId(), chunk.getX(), chunk.getZ());
+            landManager.updateOutline(player.getUniqueId(), chunk.getWorld().getName(), chunk.getX(), chunk.getZ());
             int count = landManager.getOutlineChunkCount(player.getUniqueId());
             int[] c1 = landManager.getOutlineCorner1(player.getUniqueId());
             int[] c2 = landManager.getOutlineCorner2(player.getUniqueId());
@@ -326,6 +332,19 @@ public class LandListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         BellLands.getInstance().getLandManager().removeAutoModes(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        // Outline bez świata powodował fill/cząsteczki w Endzie na tych samych X/Z
+        LandManager lm = BellLands.getInstance().getLandManager();
+        UUID id = event.getPlayer().getUniqueId();
+        if (lm.isOutlining(id)) {
+            lm.clearOutline(id);
+            lm.toggleOutline(id); // włącz ponownie w nowym świecie (puste zaznaczenie)
+            event.getPlayer().sendMessage(BellLands.getInstance().getLangManager()
+                .component("outline-world-reset"));
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

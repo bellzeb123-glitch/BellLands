@@ -5,6 +5,7 @@ import pl.bell.lands.command.BellLandsCommand;
 import pl.bell.lands.command.ClaimCommand;
 import pl.bell.lands.command.ClaimTabCompleter;
 import pl.bell.lands.command.TpaCommand;
+import pl.bell.lands.command.TprCommand;
 import pl.bell.lands.command.WarpCommand;
 import pl.bell.lands.config.LangManager;
 import pl.bell.lands.gui.ClaimGuiListener;
@@ -12,6 +13,7 @@ import pl.bell.lands.integration.LuckPermsWarpHook;
 import pl.bell.lands.integration.Pl3xMapHook;
 import pl.bell.lands.listener.LandListener;
 import pl.bell.lands.manager.LandManager;
+import pl.bell.lands.manager.RandomTeleportManager;
 import pl.bell.lands.manager.TPAManager;
 import pl.bell.lands.manager.WarpManager;
 
@@ -19,6 +21,7 @@ public final class BellLands extends JavaPlugin {
 
     private static BellLands instance;
     private TPAManager tpaManager;
+    private RandomTeleportManager rtpManager;
     private LandManager landManager;
     private LangManager langManager;
     private WarpManager warpManager;
@@ -34,11 +37,13 @@ public final class BellLands extends JavaPlugin {
         this.tpaManager = new TPAManager(this);
         this.landManager = new LandManager();
         this.landManager.init();
+        this.rtpManager = new RandomTeleportManager(this);
         this.warpManager = new WarpManager();
         this.warpManager.init();
         LuckPermsWarpHook.init();
 
         TpaCommand tpaCommand = new TpaCommand(tpaManager);
+        TprCommand tprCommand = new TprCommand(rtpManager);
         ClaimCommand claimCommand = new ClaimCommand();
         ClaimTabCompleter claimTabCompleter = new ClaimTabCompleter();
         BellLandsCommand bellLandsCommand = new BellLandsCommand();
@@ -47,6 +52,7 @@ public final class BellLands extends JavaPlugin {
         if (getCommand("tpa") != null) getCommand("tpa").setExecutor(tpaCommand);
         if (getCommand("tpaccept") != null) getCommand("tpaccept").setExecutor(tpaCommand);
         if (getCommand("tpdeny") != null) getCommand("tpdeny").setExecutor(tpaCommand);
+        if (getCommand("tpr") != null) getCommand("tpr").setExecutor(tprCommand);
         if (getCommand("claim") != null) {
             getCommand("claim").setExecutor(claimCommand);
             getCommand("claim").setTabCompleter(claimTabCompleter);
@@ -115,6 +121,7 @@ public final class BellLands extends JavaPlugin {
         reloadConfig();
         if (langManager != null) langManager.reload();
         if (tpaManager != null) tpaManager.reloadConfig();
+        if (rtpManager != null) rtpManager.reloadConfig();
         for (Runnable hook : reloadHooks) {
             try { hook.run(); } catch (Exception e) {
                 getLogger().warning("Reload hook failed: " + e.getMessage());
@@ -127,6 +134,7 @@ public final class BellLands extends JavaPlugin {
     }
 
     public TPAManager getTpaManager() { return tpaManager; }
+    public RandomTeleportManager getRtpManager() { return rtpManager; }
     public LandManager getLandManager() { return landManager; }
     public LangManager getLangManager() { return langManager; }
     public WarpManager getWarpManager() { return warpManager; }
